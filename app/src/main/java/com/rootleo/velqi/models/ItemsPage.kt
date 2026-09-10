@@ -1,0 +1,8 @@
+package com.rootleo.velqi.models
+
+import com.rootleo.velqi.innertube.models.YTItem
+
+data class ItemsPage(
+    val items: List<YTItem>,
+    val continuation: String?,
+)

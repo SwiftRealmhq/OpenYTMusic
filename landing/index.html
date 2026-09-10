@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html id="app-root" lang="es"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=b0d7fdfa-629e-4f1f-9e28-ef26d256697d
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="hosting-provider" content="Netlify">
+<meta name="netlify-deploy" content="https://netlify.new/?utm_campaign=ai-legible&amp;utm_source=meta&amp;utm_medium=referral&amp;utm_id=b0d7fdfa-629e-4f1f-9e28-ef26d256697d">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Un cliente de YouTube Music con Material Design 3, para Android">
+    <title>Velqi Luna</title>
+
+    <link rel="stylesheet" href="velqi_files/styles_67aG.css">
+
+
+    <!-- Tailwind CSS -->
+    <script src="velqi_files/3.4_67aG.js"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-container": "#1a1200",
+                        "secondary": "#96bef5",
+                        "inverse-primary": "#665590",
+                        "on-primary-fixed-variant": "#4d3d76",
+                        "on-primary-fixed": "#210f48",
+                        "surface-dim": "#000000",
+                        "tertiary": "#bfe3ff",
+                        "surface-container-lowest": "#0e0e11",
+                        "tertiary-container": "#4f8dff",
+                        "surface-container-low": "#1c1b1f",
+                        "surface": "#000000",
+                        "primary-fixed": "#fff3b0",
+                        "on-secondary": "#332d41",
+                        "on-tertiary-fixed": "#31111d",
+                        "on-tertiary": "#492532",
+                        "on-secondary-fixed-variant": "#222c54",
+                        "secondary-fixed-dim": "#96bef5",
+                        "inverse-on-surface": "#313034",
+                        "on-tertiary-fixed-variant": "#633b48",
+                        "on-surface": "#e5e1e7",
+                        "surface-container": "#201f23",
+                        "surface-container-highest": "#353438",
+                        "on-background": "#e5e1e7",
+                        "secondary-fixed": "#e9def9",
+                        "error-container": "#93000a",
+                        "surface-variant": "#353438",
+                        "on-surface-variant": "#cac4d0",
+                        "on-secondary-container": "#bfe3ff",
+                        "primary-container": "#ffd700",
+                        "primary": "#fff3b0",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#ffd700",
+                        "tertiary-fixed-dim": "#4f8dff",
+                        "on-primary": "#1a1200",
+                        "surface-bright": "#3a383d",
+                        "on-tertiary-container": "#704654",
+                        "tertiary-fixed": "#bfe3ff",
+                        "on-secondary-fixed": "#1e182b",
+                        "surface-tint": "#ffd700",
+                        "inverse-surface": "#e5e1e7",
+                        "on-error": "#690005",
+                        "outline": "#948f9a",
+                        "background": "#000000",
+                        "outline-variant": "#49454f",
+                        "error": "#ffb4ab",
+                        "surface-container-high": "#2b292d",
+                        "secondary-container": "#222c54"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px",
+                        /* M3E Shapes — corner-radius family tokens */
+                        "shape-xs":   "4px",
+                        "shape-sm":   "8px",
+                        "shape-md":   "12px",
+                        "shape-lg":   "16px",
+                        "shape-xl":   "28px",
+                        "shape-2xl":  "32px",
+                        "shape-3xl":  "48px",
+                        "shape-pill": "999px",
+                        "shape-squircle": "32% / 18%",
+                        "shape-fan":       "0% 100% 0% 100% / 50%",
+                        "shape-clover4":   "50% 50% 0% 50% / 50% 50% 0% 50%",
+                        "shape-coin":      "50%",
+                        "shape-gem":       "20% 80% 80% 20% / 20% 20% 80% 80%",
+                        "shape-pebble":    "60% 40% 30% 70% / 60% 30% 70% 40%"
+                    },
+                    spacing: {
+                        "player-padding": "32px",
+                        "base": "8px",
+                        "margin-horizontal": "24px",
+                        "list-item-gap": "12px",
+                        "gutter-grid": "16px"
+                    },
+                    fontFamily: {
+                        /* M3E: Roboto Flex como familia UI única con ejes variables */
+                        "sans": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "title-lg": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "body-md": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "label-sm": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "body-lg": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "display-lg": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "headline-lg": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "label-lg": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "headline-md": ["\"Roboto Flex\"", "system-ui", "sans-serif"],
+                        "title-md": ["\"Roboto Flex\"", "system-ui", "sans-serif"]
+                    },
+                    fontSize: {
+                        "title-lg": ["22px", { lineHeight: "28px", fontWeight: "500" }],
+                        "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+                        "label-sm": ["11px", { lineHeight: "16px", fontWeight: "500" }],
+                        "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+                        "display-lg": ["57px", { lineHeight: "64px", letterSpacing: "-0.5px", fontWeight: "700" }],
+                        "headline-lg": ["32px", { lineHeight: "40px", fontWeight: "600" }],
+                        "label-lg": ["14px", { lineHeight: "20px", fontWeight: "500" }],
+                        "headline-md": ["28px", { lineHeight: "36px", fontWeight: "600" }],
+                        "title-md": ["16px", { lineHeight: "24px", fontWeight: "500" }]
+                    },
+                    /* M3E MotionScheme — spring easings via cubic-bezier */
+                    transitionTimingFunction: {
+                        "spring-fast":     "cubic-bezier(0.34, 1.56, 0.64, 1)",
+                        "spring-normal":   "cubic-bezier(0.34, 1.3, 0.64, 1)",
+                        "spring-slow":     "cubic-bezier(0.34, 1.1, 0.64, 1)",
+                        "spring-emph":     "cubic-bezier(0.2, 0, 0, 1)",
+                        "standard":        "cubic-bezier(0.2, 0, 0, 1)",
+                        "standard-emph":   "cubic-bezier(0.3, 0, 0, 1)",
+                        "decel":           "cubic-bezier(0, 0, 0, 1)",
+                        "accel":           "cubic-bezier(0.3, 0, 1, 1)"
+                    },
+                    transitionDuration: {
+                        "fast1": "50ms",
+                        "fast2": "100ms",
+                        "med1":  "150ms",
+                        "med2":  "200ms",
+                        "med3":  "250ms",
+                        "slow1": "300ms",
+                        "slow2": "400ms",
+                        "slow3": "500ms"
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts: Roboto Flex (variable, ejes wght/opsz/SLNT/wdth/GRAD) + Material Symbols (variable) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com/">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+    <link href="velqi_files/css2_67aG.css" rel="stylesheet">
+    <link href="velqi_files/css2_002_67aG.css" rel="stylesheet">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/velqi.png">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="velqi_files/styles_002_67aG.css">
+
+    <!-- Marked.js (changelog markdown) -->
+    <script src="velqi_files/marked.min_67aG.js"></script>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:"Roboto Flex", system-ui, sans-serif;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}[type='text'],input:where(:not([type])),[type='email'],[type='url'],[type='password'],[type='number'],[type='date'],[type='datetime-local'],[type='month'],[type='search'],[type='tel'],[type='time'],[type='week'],[multiple],textarea,select{-webkit-appearance:none;appearance:none;background-color:#fff;border-color:#6b7280;border-width:1px;border-radius:0px;padding-top:0.5rem;padding-right:0.75rem;padding-bottom:0.5rem;padding-left:0.75rem;font-size:1rem;line-height:1.5rem;--tw-shadow:0 0 #0000;}[type='text']:focus, input:where(:not([type])):focus, [type='email']:focus, [type='url']:focus, [type='password']:focus, [type='number']:focus, [type='date']:focus, [type='datetime-local']:focus, [type='month']:focus, [type='search']:focus, [type='tel']:focus, [type='time']:focus, [type='week']:focus, [multiple]:focus, textarea:focus, select:focus{outline:2px solid transparent;outline-offset:2px;--tw-ring-inset:var(--tw-empty,/*!*/ /*!*/);--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:#2563eb;--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);border-color:#2563eb}input::placeholder,textarea::placeholder{color:#6b7280;opacity:1}::-webkit-datetime-edit-fields-wrapper{padding:0}::-webkit-date-and-time-value{min-height:1.5em;text-align:inherit}::-webkit-datetime-edit{display:inline-flex}::-webkit-datetime-edit,::-webkit-datetime-edit-year-field,::-webkit-datetime-edit-month-field,::-webkit-datetime-edit-day-field,::-webkit-datetime-edit-hour-field,::-webkit-datetime-edit-minute-field,::-webkit-datetime-edit-second-field,::-webkit-datetime-edit-millisecond-field,::-webkit-datetime-edit-meridiem-field{padding-top:0;padding-bottom:0}select{background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position:right 0.5rem center;background-repeat:no-repeat;background-size:1.5em 1.5em;padding-right:2.5rem;print-color-adjust:exact}[multiple],[size]:where(select:not([size="1"])){background-image:initial;background-position:initial;background-repeat:unset;background-size:initial;padding-right:0.75rem;print-color-adjust:unset}[type='checkbox'],[type='radio']{-webkit-appearance:none;appearance:none;padding:0;print-color-adjust:exact;display:inline-block;vertical-align:middle;background-origin:border-box;-webkit-user-select:none;user-select:none;flex-shrink:0;height:1rem;width:1rem;color:#2563eb;background-color:#fff;border-color:#6b7280;border-width:1px;--tw-shadow:0 0 #0000}[type='checkbox']{border-radius:0px}[type='radio']{border-radius:100%}[type='checkbox']:focus,[type='radio']:focus{outline:2px solid transparent;outline-offset:2px;--tw-ring-inset:var(--tw-empty,/*!*/ /*!*/);--tw-ring-offset-width:2px;--tw-ring-offset-color:#fff;--tw-ring-color:#2563eb;--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow)}[type='checkbox']:checked,[type='radio']:checked{border-color:transparent;background-color:currentColor;background-size:100% 100%;background-position:center;background-repeat:no-repeat}[type='checkbox']:checked{background-image:url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");}@media (forced-colors: active) {[type='checkbox']:checked{-webkit-appearance:auto;appearance:auto}}[type='radio']:checked{background-image:url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");}@media (forced-colors: active) {[type='radio']:checked{-webkit-appearance:auto;appearance:auto}}[type='checkbox']:checked:hover,[type='checkbox']:checked:focus,[type='radio']:checked:hover,[type='radio']:checked:focus{border-color:transparent;background-color:currentColor}[type='checkbox']:indeterminate{background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 16 16'%3e%3cpath stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8h8'/%3e%3c/svg%3e");border-color:transparent;background-color:currentColor;background-size:100% 100%;background-position:center;background-repeat:no-repeat;}@media (forced-colors: active) {[type='checkbox']:indeterminate{-webkit-appearance:auto;appearance:auto}}[type='checkbox']:indeterminate:hover,[type='checkbox']:indeterminate:focus{border-color:transparent;background-color:currentColor}[type='file']{background:unset;border-color:inherit;border-width:0;border-radius:0;padding:0;font-size:unset;line-height:inherit}[type='file']:focus{outline:1px solid ButtonText;outline:1px auto -webkit-focus-ring-color}.pointer-events-none{pointer-events:none}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.-left-10{left:-2.5rem}.-top-10{top:-2.5rem}.left-1\/2{left:50%}.right-0{right:0px}.top-0{top:0px}.top-1\/2{top:50%}.-z-0{z-index:0}.z-10{z-index:10}.z-50{z-index:50}.mx-auto{margin-left:auto;margin-right:auto}.mb-10{margin-bottom:2.5rem}.mb-16{margin-bottom:4rem}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mt-3{margin-top:0.75rem}.mt-5{margin-top:1.25rem}.inline-block{display:inline-block}.flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.hidden{display:none}.h-10{height:2.5rem}.h-12{height:3rem}.h-14{height:3.5rem}.h-32{height:8rem}.h-full{height:100%}.max-h-\[2000px\]{max-height:2000px}.w-1\/2{width:50%}.w-10{width:2.5rem}.w-12{width:3rem}.w-14{width:3.5rem}.w-32{width:8rem}.w-full{width:100%}.max-w-2xl{max-width:42rem}.max-w-3xl{max-width:48rem}.max-w-7xl{max-width:80rem}.max-w-md{max-width:28rem}.max-w-sm{max-width:24rem}.max-w-xl{max-width:36rem}.flex-1{flex:1 1 0%}.flex-shrink-0{flex-shrink:0}.-translate-x-1\/2{--tw-translate-x:-50%;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.-translate-y-1\/2{--tw-translate-y:-50%;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.translate-x-0{--tw-translate-x:0px;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.translate-x-1\/2{--tw-translate-x:50%;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.transform{transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-not-allowed{cursor:not-allowed}.cursor-pointer{cursor:pointer}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1{gap:0.25rem}.gap-12{gap:3rem}.gap-16{gap:4rem}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.gap-8{gap:2rem}.overflow-hidden{overflow:hidden}.rounded{border-radius:1rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:2rem}.rounded-xl{border-radius:3rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-t{border-top-width:1px}.border-outline-variant{--tw-border-opacity:1;border-color:rgb(73 69 79 / var(--tw-border-opacity, 1))}.border-white\/10{border-color:rgb(255 255 255 / 0.1)}.border-white\/5{border-color:rgb(255 255 255 / 0.05)}.bg-background{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity, 1))}.bg-on-surface{--tw-bg-opacity:1;background-color:rgb(229 225 231 / var(--tw-bg-opacity, 1))}.bg-primary-container{--tw-bg-opacity:1;background-color:rgb(255 215 0 / var(--tw-bg-opacity, 1))}.bg-primary-container\/20{background-color:rgb(255 215 0 / 0.2)}.bg-primary-container\/30{background-color:rgb(255 215 0 / 0.3)}.bg-primary\/5{background-color:rgb(255 243 176 / 0.05)}.bg-secondary-container{--tw-bg-opacity:1;background-color:rgb(34 44 84 / var(--tw-bg-opacity, 1))}.bg-secondary-container\/60{background-color:rgb(34 44 84 / 0.6)}.bg-slate-950{--tw-bg-opacity:1;background-color:rgb(2 6 23 / var(--tw-bg-opacity, 1))}.bg-slate-950\/65{background-color:rgb(2 6 23 / 0.65)}.bg-surface{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity, 1))}.bg-surface-container{--tw-bg-opacity:1;background-color:rgb(32 31 35 / var(--tw-bg-opacity, 1))}.bg-surface-container-high{--tw-bg-opacity:1;background-color:rgb(43 41 45 / var(--tw-bg-opacity, 1))}.bg-surface-container-lowest{--tw-bg-opacity:1;background-color:rgb(14 14 17 / var(--tw-bg-opacity, 1))}.bg-tertiary-container\/20{background-color:rgb(79 141 255 / 0.2)}.bg-tertiary-container\/30{background-color:rgb(79 141 255 / 0.3)}.bg-gradient-to-b{background-image:linear-gradient(to bottom, var(--tw-gradient-stops))}.bg-gradient-to-l{background-image:linear-gradient(to left, var(--tw-gradient-stops))}.from-primary-container{--tw-gradient-from:#ffd700 var(--tw-gradient-from-position);--tw-gradient-to:rgb(255 215 0 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-surface{--tw-gradient-from:#000000 var(--tw-gradient-from-position);--tw-gradient-to:rgb(0 0 0 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.to-slate-950{--tw-gradient-to:#020617 var(--tw-gradient-to-position)}.to-transparent{--tw-gradient-to:transparent var(--tw-gradient-to-position)}.object-cover{object-fit:cover}.p-10{padding:2.5rem}.p-12{padding:3rem}.p-3{padding:0.75rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-8{padding-left:2rem;padding-right:2rem}.px-margin-horizontal{padding-left:24px;padding-right:24px}.py-1{padding-top:0.25rem;padding-bottom:0.25rem}.py-12{padding-top:3rem;padding-bottom:3rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-20{padding-top:5rem;padding-bottom:5rem}.py-24{padding-top:6rem;padding-bottom:6rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.pt-24{padding-top:6rem}.pt-6{padding-top:1.5rem}.text-center{text-align:center}.font-\[\'Epilogue\'\]{font-family:'Epilogue'}.font-body-lg{font-family:"Roboto Flex", system-ui, sans-serif}.font-body-md{font-family:"Roboto Flex", system-ui, sans-serif}.font-display-lg{font-family:"Roboto Flex", system-ui, sans-serif}.font-headline-lg{font-family:"Roboto Flex", system-ui, sans-serif}.font-headline-md{font-family:"Roboto Flex", system-ui, sans-serif}.font-label-lg{font-family:"Roboto Flex", system-ui, sans-serif}.font-label-sm{font-family:"Roboto Flex", system-ui, sans-serif}.font-sans{font-family:"Roboto Flex", system-ui, sans-serif}.font-title-lg{font-family:"Roboto Flex", system-ui, sans-serif}.font-title-md{font-family:"Roboto Flex", system-ui, sans-serif}.text-2xl{font-size:1.5rem;line-height:2rem}.text-\[18px\]{font-size:18px}.text-\[20px\]{font-size:20px}.text-display-lg{font-size:57px;line-height:64px;letter-spacing:-0.5px;font-weight:700}.text-headline-lg{font-size:32px;line-height:40px;font-weight:600}.text-headline-md{font-size:28px;line-height:36px;font-weight:600}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-black{font-weight:900}.font-medium{font-weight:500}.leading-none{line-height:1}.leading-relaxed{line-height:1.625}.leading-tight{line-height:1.25}.tracking-tighter{letter-spacing:-0.05em}.text-on-background{--tw-text-opacity:1;color:rgb(229 225 231 / var(--tw-text-opacity, 1))}.text-on-primary-container{--tw-text-opacity:1;color:rgb(26 18 0 / var(--tw-text-opacity, 1))}.text-on-secondary-container{--tw-text-opacity:1;color:rgb(191 227 255 / var(--tw-text-opacity, 1))}.text-on-surface{--tw-text-opacity:1;color:rgb(229 225 231 / var(--tw-text-opacity, 1))}.text-on-surface-variant{--tw-text-opacity:1;color:rgb(202 196 208 / var(--tw-text-opacity, 1))}.text-primary{--tw-text-opacity:1;color:rgb(255 243 176 / var(--tw-text-opacity, 1))}.text-secondary{--tw-text-opacity:1;color:rgb(150 190 245 / var(--tw-text-opacity, 1))}.text-slate-100{--tw-text-opacity:1;color:rgb(241 245 249 / var(--tw-text-opacity, 1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184 / var(--tw-text-opacity, 1))}.text-slate-500{--tw-text-opacity:1;color:rgb(100 116 139 / var(--tw-text-opacity, 1))}.text-surface{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.text-tertiary{--tw-text-opacity:1;color:rgb(191 227 255 / var(--tw-text-opacity, 1))}.text-violet-300{--tw-text-opacity:1;color:rgb(255 215 0 / var(--tw-text-opacity, 1))}.no-underline{-webkit-text-decoration-line:none;text-decoration-line:none}.opacity-20{opacity:0.2}.opacity-50{opacity:0.5}.blur-2xl{--tw-blur:blur(40px);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.blur-3xl{--tw-blur:blur(64px);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.backdrop-blur-2xl{--tw-backdrop-blur:blur(40px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-200{transition-duration:200ms}.duration-300{transition-duration:300ms}.ease-in-out{transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1)}.selection\:bg-primary-container *::selection{--tw-bg-opacity:1;background-color:rgb(255 215 0 / var(--tw-bg-opacity, 1))}.selection\:text-on-primary-container *::selection{--tw-text-opacity:1;color:rgb(26 18 0 / var(--tw-text-opacity, 1))}.selection\:bg-primary-container::selection{--tw-bg-opacity:1;background-color:rgb(255 215 0 / var(--tw-bg-opacity, 1))}.selection\:text-on-primary-container::selection{--tw-text-opacity:1;color:rgb(26 18 0 / var(--tw-text-opacity, 1))}.hover\:bg-surface-container-high:hover{--tw-bg-opacity:1;background-color:rgb(43 41 45 / var(--tw-bg-opacity, 1))}.hover\:bg-white\/10:hover{background-color:rgb(255 255 255 / 0.1)}.hover\:text-on-primary-container:hover{--tw-text-opacity:1;color:rgb(26 18 0 / var(--tw-text-opacity, 1))}.hover\:text-slate-100:hover{--tw-text-opacity:1;color:rgb(241 245 249 / var(--tw-text-opacity, 1))}.hover\:text-violet-200:hover{--tw-text-opacity:1;color:rgb(255 243 176 / var(--tw-text-opacity, 1))}.hover\:brightness-110:hover{--tw-brightness:brightness(1.1);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.active\:scale-95:active{--tw-scale-x:.95;--tw-scale-y:.95;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}@media (min-width: 640px){.sm\:inline-flex{display:inline-flex}.sm\:flex-row{flex-direction:row}.sm\:items-center{align-items:center}}@media (min-width: 768px){.md\:flex{display:flex}.md\:translate-x-8{--tw-translate-x:2rem;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}.md\:justify-start{justify-content:flex-start}.md\:p-20{padding:5rem}.md\:p-8{padding:2rem}.md\:text-left{text-align:left}}@media (min-width: 1024px){.lg\:inline{display:inline}.lg\:rotate-3{--tw-rotate:3deg;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.lg\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.lg\:flex-row{flex-direction:row}.lg\:p-10{padding:2.5rem}.lg\:text-left{text-align:left}}@media (min-width: 1280px){.xl\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}</style></head>
+
+<body class="bg-background text-on-background font-sans font-body-md selection:bg-primary-container selection:text-on-primary-container" style="font-optical-sizing: auto; font-variation-settings: 'opsz' 14, 'wght' 400;">
+
+<!-- Fondo de partículas circulares (estático, estilo M3) -->
+<div class="particle-bg">
+    <div class="particle particle-1"></div>
+    <div class="particle particle-2"></div>
+    <div class="particle particle-3"></div>
+    <div class="particle particle-4"></div>
+    <div class="particle particle-5"></div>
+</div>
+
+
+    <!-- ═══════════════════════ DIALOGS ═══════════════════════ -->
+
+    <!-- ═══════════════════════ NAVIGATION ═══════════════════════ -->
+
+    <nav class="fixed top-0 w-full z-50 bg-slate-950/65 backdrop-blur-2xl border-b border-white/10">
+        <div class="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
+
+            <!-- Logo -->
+            <a href="#" class="flex items-center gap-3 no-underline">
+                <img id="logo" src="assets/velqi.png" alt="Velqi Luna" width="38" height="38" class="rounded-full" style="filter: drop-shadow(0 0 14px rgba(255,215,0,.55)) drop-shadow(0 0 30px rgba(79,141,255,.3));" onerror="this.style.display='none'">
+            </a>
+
+            <!-- Desktop Nav -->
+            <div class="hidden md:flex gap-8 items-center">
+                <a href="#features" class="font-['Epilogue'] font-medium text-slate-400 hover:text-slate-100 transition-colors">Características</a>
+                <a href="#downloads" class="font-['Epilogue'] font-medium text-slate-400 hover:text-slate-100 transition-colors">Descargas</a>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+
+
+                <!-- Download APK (nav) -->
+                <a id="nav-download-btn" href="#downloads" class="bg-primary-container text-on-primary-container px-5 py-2 rounded-full font-label-lg active:scale-95 transition-all duration-200 no-underline hidden sm:inline-flex items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size:18px">download</span>
+                    Descargar
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
+
+    <main class="pt-24">
+
+        <!-- ─── HERO ─── -->
+        <section class="relative px-margin-horizontal py-20 overflow-hidden">
+            <!-- Background glow -->
+            <div class="absolute top-0 right-0 w-1/2 h-full opacity-20 pointer-events-none">
+                <div class="w-full h-full bg-gradient-to-l from-primary-container to-transparent blur-3xl rounded-full translate-x-1/2">
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
+                <!-- Text -->
+                <div class="flex-1 text-center lg:text-left z-10">
+                    <!-- Developer chip -->
+                    <div class="developer-chip inline-flex items-center gap-2 bg-secondary-container text-on-secondary-container px-4 py-2 rounded-full font-label-sm mb-6">
+                        <span class="material-symbols-outlined" style="font-size:16px">music_note</span>
+                        Sin anuncios, sin límites
+                    </div>
+
+                    <h1 class="mb-8 leading-tight">
+                        <img src="assets/logo-round.png" alt="Velqi Luna" class="inline-block w-44 h-44 rounded-full" style="filter: drop-shadow(0 0 34px rgba(255,215,0,.4)) drop-shadow(0 0 80px rgba(79,141,255,.25));">
+                    </h1>
+                    <p class="font-headline-md text-headline-md text-on-surface-variant mb-10 max-w-xl">
+                        Un cliente de YouTube Music con Material Design 3, para Android.
+                    </p>
+
+                    <!-- M3E FloatingToolbar (horizontal) — agrupa acciones primarias relacionadas -->
+                    <div class="m3e-floating-toolbar" role="toolbar" aria-label="Acciones principales">
+                        <a id="hero-download-btn" href="#downloads" class="m3e-floating-toolbar__btn m3e-floating-toolbar__btn--primary no-underline">
+                            <span class="material-symbols-outlined">download</span>
+                            <span>Descargar</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Mockup -->
+                <div class="flex-1 relative">
+                    <div class="screenshots-device-frame ambient-glow transform lg:rotate-3">
+                        <img src="assets/captura-2026-09-09_21-54-18.png" alt="Velqi Luna App Preview" class="w-full h-full object-cover">
+                    </div>
+                    <div class="absolute -top-10 -left-10 w-32 h-32 bg-tertiary-container/20 rounded-full blur-2xl">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── FEATURES ─── -->
+        <section id="features" class="px-margin-horizontal py-24 bg-surface-container-lowest">
+            <div class="max-w-7xl mx-auto">
+                <div class="text-center mb-16">
+                    <h2 class="font-headline-lg text-headline-lg text-on-surface mb-4">Características</h2>
+                    <p class="text-on-surface-variant max-w-2xl mx-auto">
+                        Descubre todas las funciones que hacen de Velqi Luna el mejor cliente para tu música.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Feature cards -->
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-primary-container/30 text-primary">
+                            <span class="material-symbols-outlined">music_note</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Cliente de YouTube Music, sin anuncios</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Todo el catálogo de YouTube Music
+                            sin anuncios ni límites, y sin necesidad de cuenta.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-secondary-container/60 text-secondary">
+                            <span class="material-symbols-outlined">palette</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Material Design 3</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Colores dinámicos Material You,
+                            tipografía moderna y transiciones suaves.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-tertiary-container/30 text-tertiary">
+                            <span class="material-symbols-outlined">headphones</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Reproductor inmersivo</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Pantalla completa con portada
+                            protagonista, visor a pantalla completa y línea de tiempo ondulada.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-primary-container/30 text-primary">
+                            <span class="material-symbols-outlined">queue_music</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Letras y cola de reproducción</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Letras sincronizadas en tiempo real
+                            y control total de la cola desde el reproductor.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-secondary-container/60 text-secondary">
+                            <span class="material-symbols-outlined">graphic_eq</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Miniplayer flotante</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Miniplayer separado con una onda
+                            circular que rodea la portada de la canción.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-tertiary-container/30 text-tertiary">
+                            <span class="material-symbols-outlined">search</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Búsqueda y géneros</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Búsqueda instantánea, chips rápidos
+                            y géneros con tarjetas de colores.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-primary-container/30 text-primary">
+                            <span class="material-symbols-outlined">library_music</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Biblioteca completa</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Canciones, álbumes, artistas y
+                            listas de reproducción, con tu historial.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-secondary-container/60 text-secondary">
+                            <span class="material-symbols-outlined">bar_chart</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Estadísticas reales</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Tiempo escuchado, tiempo en la app
+                            y tus canciones más escuchadas con desglose por día.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-tertiary-container/30 text-tertiary">
+                            <span class="material-symbols-outlined">bedtime</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Temporizador de sueño</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Duérmete con tu música: temporizador
+                            integrado en el reproductor.</p>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-lg hover:bg-surface-container-high transition-colors">
+                        <div class="feature-icon-wrap bg-primary-container/30 text-primary">
+                            <span class="material-symbols-outlined">translate</span>
+                        </div>
+                        <h3 class="font-title-md text-on-surface mb-2">Soporte multilingüe</h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed">Disponible en español e inglés, con
+                            localización cuidada.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── OPEN SOURCE ─── -->
+        <section class="px-margin-horizontal py-24 relative overflow-hidden">
+            <div class="max-w-7xl mx-auto glass-card rounded-xl p-12 md:p-20 relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
+                <div class="max-w-xl text-center md:text-left">
+                    <h2 class="font-headline-lg text-headline-lg text-on-surface mb-6">Música sin fricción</h2>
+                    <p class="text-on-surface-variant font-body-lg mb-8">Velqi Luna es un cliente ligero hecho con Material Design 3 que reproduce música sin anuncios ni interrupciones, impulsado por una API privada 100% trabajada. Hecho por un fan de la música.</p>
+                    <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+                        <span class="flex items-center gap-2 px-6 py-3 border border-outline-variant rounded-full text-on-surface">
+                            <span class="font-title-md">Material Design 3</span>
+                        </span>
+                        <span class="flex items-center gap-2 px-6 py-3 border border-outline-variant rounded-full text-on-surface">
+                            <span class="font-title-md">API privada</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-6 w-full max-w-sm items-center">
+                    <div class="w-full bg-surface-container-high p-6 rounded-lg flex items-center gap-4 border border-white/5">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-secondary text-[20px] leading-none">verified</span><p class="text-on-surface font-title-md">Diego Leo</p>
+                                
+                            </div>
+                            <p class="text-on-surface-variant text-sm">Fundador y Desarrollador</p>
+                        </div>
+                    </div>
+                    <div class="w-full bg-surface-container-high p-6 rounded-lg flex items-center gap-4 border border-white/5 translate-x-0 md:translate-x-8">
+                        <div class="w-12 h-12 rounded-full bg-secondary-container/60 flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-secondary">verified</span>
+                        </div>
+                        <div>
+                            <p class="text-on-surface font-title-md">Última versión estable</p>
+                            <p id="oss-version-badge" class="text-on-surface-variant text-sm">Error</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-primary/5 blur-3xl -z-0 pointer-events-none">
+            </div>
+        </section>
+
+        <!-- ─── SUPPORT ─── -->
+        <section class="px-margin-horizontal py-20">
+            <div class="max-w-3xl mx-auto">
+                <div class="glass-card rounded-xl p-10 text-center border border-white/5">
+                    <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-6" style="background: rgba(88,101,242,0.15);">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="#5865F2"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                    </div>
+                    <h2 class="font-headline-md text-headline-md text-on-surface mb-3">¿Dudas o sugerencias?</h2>
+                    <p class="text-on-surface-variant font-body-lg mb-8 max-w-md mx-auto">
+                        Escríbeme por Discord y te respondo al momento.
+                    </p>
+                    <a class="inline-flex items-center gap-2 px-8 py-3 rounded-full font-label-lg active:scale-95 transition-all hover:brightness-110 no-underline" style="background:#5865F2;color:#fff;" href="https://discord.com/users/743374344192917514" target="_blank" rel="noopener">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                        Contactar por Discord
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── DOWNLOADS ─── -->
+        <section id="downloads" class="px-margin-horizontal py-24 bg-gradient-to-b from-surface to-slate-950">
+            <div class="max-w-7xl mx-auto">
+                <div class="text-center mb-16">
+                    <h2 class="font-headline-lg text-headline-lg text-on-surface mb-4">Descargas</h2>
+                    <p class="text-on-surface-variant max-w-2xl mx-auto">
+                        Descarga la versión más reciente de Velqi Luna para tu plataforma.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <!-- Android Card -->
+                    <div class="glass-card rounded-xl p-8 border border-white/5">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-12 h-12 rounded-full bg-tertiary-container/20 text-tertiary flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-outlined">android</span>
+                            </div>
+                            <div>
+                                <h3 class="font-title-lg text-on-surface">Android</h3>
+                                <p class="text-on-surface-variant text-sm">La última versión de Velqi Luna.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-3 mb-8">
+                            <span class="version-chip version-chip--latest">0.3.0</span>
+                            <span class="version-chip">Preview</span>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-6 border-t border-white/10">
+                            <a id="android-download-btn" href="Velqi-Luna-0.3.0.apk" class="m3e-split-button__primary no-underline">
+                                <span class="material-symbols-outlined">download</span>
+                                <span>Descargar</span>
+                            </a>
+                            <p class="text-on-surface-variant font-label-sm">Requiere Android 6.0+</p>
+                        </div>
+                    </div>
+
+
+
+                    <!-- Windows Card (Disabled) -->
+                    <div class="glass-card rounded-xl border border-white/5 disabled-card" aria-disabled="true">
+                        <div class="disabled-card__inner p-8">
+                            <div class="flex items-center gap-4 mb-6">
+                                <div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0">
+                                    <span class="material-symbols-outlined text-on-surface-variant">laptop_windows</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-title-lg text-on-surface-variant">Windows</h3>
+                                    <p class="text-on-surface-variant text-sm">El desarrollo está cerrado actualmente.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="version-chip">Cerrado</span>
+                                <span class="version-chip">No disponible</span>
+                            </div>
+
+                            <div class="flex flex-wrap gap-6 mb-8">
+                                <span class="flex items-center gap-2 text-on-surface-variant font-label-lg opacity-50">
+                                    <span class="material-symbols-outlined" style="font-size:18px">list_alt</span>
+                                    Ver cambios
+                                </span>
+                                <span class="flex items-center gap-2 text-on-surface-variant font-label-lg opacity-50">
+                                    <span class="material-symbols-outlined" style="font-size:18px">history</span>
+                                    Versiones anteriores
+                                </span>
+                            </div>
+
+                            <div class="pt-6 border-t border-white/10">
+                                <button disabled="disabled" class="flex items-center gap-3 bg-surface-container text-on-surface-variant px-8 py-3 rounded-full font-label-lg cursor-not-allowed">
+                                    <span class="material-symbols-outlined">block</span>
+                                    No disponible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+
+    <footer class="bg-slate-950 w-full py-12 border-t border-white/5">
+        <div class="max-w-7xl mx-auto px-8">
+            <div class="flex flex-col lg:flex-row justify-between items-center gap-8 mb-10">
+                <div class="text-center lg:text-left">
+                    <span class="text-xl font-black text-slate-100">Velqi Luna</span>
+                    <p class="text-slate-500 text-sm mt-1">© 2026 Diego Leo. All Rights Reserved.</p>
+                </div>
+
+                <div class="flex flex-wrap gap-3 justify-center">
+                    <a href="#features" class="footer-chip">
+                        <span class="material-symbols-outlined" style="font-size:16px">music_note</span>
+                        Funciones
+                    </a>
+                    <a href="#downloads" class="footer-chip">
+                        <span class="material-symbols-outlined" style="font-size:16px">download</span>
+                        Descargas
+                    </a>
+                </div>
+            </div>
+
+            <div class="border-t border-white/5 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-slate-500 text-sm">Velqi Luna y su contenido no están afiliados con YouTube, Google LLC ni sus afiliados. Las marcas pertenecen a sus respectivos dueños.</p>
+                <div class="flex gap-6">
+                    <a href="#features" class="text-slate-500 hover:text-violet-200 transition-colors text-sm no-underline">Características</a>
+                    <a href="#downloads" class="text-slate-500 hover:text-violet-200 transition-colors text-sm no-underline">Descargas</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- Diálogo para Ver Cambios (Changelog) -->
+    <dialog id="changelog-dialog" class="glass-dialog glass-dialog--large">
+        <div class="dialog-header">
+            <h3 class="text-on-surface font-title-md">Registro de cambios</h3>
+            <button id="close-changelog-btn" class="dialog-icon-btn">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div id="changelog-content" class="dialog-content dialog-content--scroll">
+            <div class="loading-indicator" role="status" aria-label="Cargando">
+                <div class="m3e-loading-indicator">
+                    <span class="m3e-loading-indicator__dot"></span>
+                    <span class="m3e-loading-indicator__dot"></span>
+                    <span class="m3e-loading-indicator__dot"></span>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Diálogo para Versiones anteriores -->
+    <dialog id="versions-dialog" class="glass-dialog glass-dialog--large">
+        <div class="dialog-header">
+            <h3 class="text-on-surface font-title-md">Versiones anteriores</h3>
+            <button id="close-versions-btn" class="dialog-icon-btn">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div id="versions-list" class="dialog-content dialog-content--scroll">
+            <div class="loading-indicator" role="status" aria-label="Cargando">
+                <div class="m3e-loading-indicator">
+                    <span class="m3e-loading-indicator__dot"></span>
+                    <span class="m3e-loading-indicator__dot"></span>
+                    <span class="m3e-loading-indicator__dot"></span>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+
+    <!-- M3E FAB menu — acciones rápidas accesibles desde cualquier punto -->
+    <div class="m3e-fab" id="m3e-fab" data-open="false">
+        <div class="m3e-fab__items" role="menu" aria-label="Acciones rápidas">
+            <a href="#downloads" class="m3e-fab__item" role="menuitem" data-fab-label="Descargar">
+                <span class="m3e-fab__item-label">Descargar</span>
+                <span class="m3e-fab__item-icon">
+                    <span class="material-symbols-outlined">download</span>
+                </span>
+            </a>
+        </div>
+        <button type="button" class="m3e-fab__primary" id="m3e-fab-toggle" aria-label="Abrir menú de acciones" aria-haspopup="menu" aria-expanded="false">
+            <span class="material-symbols-outlined m3e-fab__icon-add">add</span>
+            <span class="material-symbols-outlined m3e-fab__icon-close">close</span>
+        </button>
+    </div>
+
+    <!-- Script -->
+    <script src="velqi_files/script_67aG.js"></script>
+
+
+
+</body></html>

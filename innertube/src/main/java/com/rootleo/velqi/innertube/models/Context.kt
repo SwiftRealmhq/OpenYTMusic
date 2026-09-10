@@ -1,0 +1,25 @@
+package com.rootleo.velqi.innertube.models
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class Context(
+    val client: Client,
+    val thirdParty: ThirdParty? = null,
+) {
+    @Serializable
+    data class Client(
+        val clientName: String,
+        val clientVersion: String,
+        val osVersion: String?,
+        val androidSdkVersion: Int? = null,
+        val gl: String,
+        val hl: String,
+        val visitorData: String?,
+    )
+
+    @Serializable
+    data class ThirdParty(
+        val embedUrl: String,
+    )
+}
