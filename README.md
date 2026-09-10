@@ -1,56 +1,108 @@
 # 🌙 Velqi Luna
 
-> **Alpha 0.1.0** — una aplicación de música en desarrollo activo, parte de la familia **Velqi**.
-> Creada por **Diego Leo**. Hecha para revivir.
+> **v0.3.0** · Repositorio **privado** · Código **cerrado**
+> Autor: **Diego Leo** · Acceso restringido únicamente al creador y contribuidores autorizados.
 
-Velqi Luna es una versión preliminar creada para probar las funciones base de la aplicación con un grupo reducido de usuarios. Al ser una beta de prueba, no cuenta con soporte ni mantenimiento continuo, y podría presentar fallos o interrupciones en su servicio. Todos los errores reportados serán corregidos en futuras actualizaciones.
-
-<img src="assets/VelqiLuna.png" height="120" alt="Velqi Luna">
+> ⚠️ **CONFIDENCIAL** — Este repositorio contiene el código fuente completo de Velqi Luna. El acceso está
+> limitado por invitación explícita del autor. Queda prohibida la copia, distribución, publicación,
+> fork o divulgación de cualquier parte del código, total o parcial, sin autorización escrita previa.
 
 ---
 
-## ¿Qué es Velqi Luna?
+## Stack técnico
 
-Luna es la primera de una serie de versiones que irán llegando de la mano de Diego Leo — como Velqi Sol, Velqi Terra y Velqi Júpiter. Está construida sobre el **Kernel de Velqi**: un extractor propio que resuelve la obtención de streams de YouTube Music con rotación de clientes, streams muxed y manejo de cookies, para una reproducción estable.
+| Capa | Tecnología |
+|---|---|
+| Lenguaje | Kotlin (JVM target 17) |
+| UI | Jetpack Compose + Material Design 3 (dynamic color) |
+| Reproducción | AndroidX Media3 (ExoPlayer) |
+| Persistencia | Room + DataStore (Preferences) |
+| Red | Ktor client + OkHttp |
+| Extracción de streams | Cliente InnerTube propio (rotación de clientes, streams muxed) |
+| Letras | LrcLib + KuGou + YouTube transcript (con fallback en cascada) |
+| RPC | Discord Rich Presence (módulo `discord-rpc`) |
+| minSdk / targetSdk / compileSdk | 26 / 35 / 35 |
 
-## Características
+## Arquitectura de módulos
 
-- Reproducción de canciones de YouTube Music
-- Búsqueda de canciones, artistas, álbumes y playlists
-- Reproducción en segundo plano
-- Descarga y caché para modo offline
-- Letras sincronizadas
-- Tema dinámico Material Design 3
-- Soporte Android Auto
-- Integración con Discord Rich Presence
-- **Kernel de Velqi**: extracción robusta con rotación de clientes (Android → Android VR → iOS → TVHTML5) y streams muxed para seek y descarga sin 403
+```
+velqi/
+├── app/                      # Módulo principal (UI, navegación, reproductor, servicios)
+├── innertube/                # Cliente InnerTube: parseo de respuestas de YouTube Music
+├── lrclib/                   # Cliente de LrcLib (letras sincronizadas)
+├── kugou/                    # Cliente de KuGou (letras)
+├── discord-rpc/              # Gateway de Discord (Rich Presence)
+├── material-color-utilities/ # Utilidades de color Material (tema dinámico)
+└── desktop/                  # Variante de escritorio (experimental)
+```
+
+El módulo `app` depende de los módulos de extracción a través de `com.rootleo.velqi.innertube`
+y expone la lógica de negocio vía ViewModels (`com.rootleo.velqi.viewmodels`). La capa de
+reproducción vive en `com.rootleo.velqi.playback` (servicio de media, colas, radios).
+
+## Requisitos de build
+
+- **JDK 17** (se verifica con `java -version`)
+- **Android SDK** con `compileSdk 35` / `build-tools 35`
+- Gradle wrapper incluido en el repo (no requiere instalación de Gradle)
 
 ## Compilar
 
 ```bash
-# Debug (recomendado para desarrollo)
+# Debug (desarrollo / testeo)
 ./gradlew :app:assembleFossDebug
 
-# Release
+# Release (firma aparte, no automatizada)
 ./gradlew :app:assembleFossRelease
 ```
 
-Requiere JDK 17 y Android SDK (compileSdk 35). El APK debug lleva sufijo `.debug`; el release se firma por separado.
+Salidas:
+
+| Variante | Ruta |
+|---|---|
+| Debug | `app/build/outputs/apk/foss/debug/app-foss-debug.apk` |
+| Release | `app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk` |
+
+> El release requiere firma manual (`apksigner`) con la keystore privada. La keystore **no** vive
+> en este repositorio y **no se comparte** con contribuidores.
+
+## Testear vía código
+
+- Ejecutar el **linter** de Kotlin: `./gradlew :app:lintFossDebug`
+- Tests unitarios del cliente InnerTube: `./gradlew :innertube:test`
+- Verificación de tipos sin emitir artefactos: `./gradlew :app:compileFossDebugKotlin`
+- Instalación directa en dispositivo/emulador: `adb install -r app-foss-debug.apk`
+
+La estrategia de testing es conservadora: los cambios deben validarse en dispositivo real
+(reproducción, colas, letras y RPC) antes de abrir un PR.
+
+## Guía para contribuidores
+
+1. **Acceso**: solo por invitación del autor (colaborador con rol `Write`). No se otorgan roles
+   `Admin` ni acceso a la keystore, secretos o credenciales de publicación.
+2. **Flujo de trabajo**:
+   - Crear una rama descriptiva desde `main` (`git checkout -b fix/nombre-corto`).
+   - Implementar el cambio siguiendo el estilo existente (Kotlin, Compose, strings en `values/`
+     y `values-es/`).
+   - Verificar compilación y linter antes del push.
+   - Abrir **Pull Request** hacia `main` (push directo a `main` está bloqueado).
+3. **Política del repo**:
+   - `main` está **protegida**: requiere revisión y PR aprobado; sin force push.
+   - Prohibido subir APKs, keystores, tokens o secretos (el `.gitignore` los excluye).
+   - Prohibido copiar o divulgar el código fuera del repo.
+4. **Reporting**: los bugs se describen en un issue con pasos de reproducción, build y
+   logs de `logcat` (`adb logcat` filtrando por `velqi`).
 
 ## Estado
 
-- **Versión**: 0.1.0-Alpha (BETA)
-- **Acceso**: limitado — grupo reducido de testers elegidos por Diego Leo
-- **Mantenimiento**: sin compromiso continuo; errores reportados se corrigen en versiones posteriores
-
-## Créditos
-
-Velqi Luna es un proyecto independiente construido desde cero con la API pública de YouTube Music.
-
-- Licencia: [GPL-3.0](LICENSE)
+- **Versión**: 0.3.0 (release universal, firmada)
+- **Visibilidad**: privado — no público, no forkable, sin mirrors
+- **Propósito del repo**: copia de seguridad en la nube y colaboración cerrada
+- **Licencia**: código cerrado — todos los derechos reservados por Diego Leo
 
 ## Disclaimer
 
-Este proyecto y su contenido no están afiliados, financiados, autorizados, respaldados ni asociados de ninguna forma con YouTube, Google LLC ni sus afiliados y subsidiarias.
-
-Cualquier marca comercial, marca de servicio, nombre comercial u otros derechos de propiedad intelectual usados en este proyecto pertenecen a sus respectivos dueños.
+Este proyecto y su contenido no están afiliados, financiados, autorizados, respaldados ni
+asociados de ninguna forma con YouTube, Google LLC ni sus afiliados y subsidiarias. Cualquier
+marca comercial, servicio o propiedad intelectual de terceros mencionada pertenece a sus
+respectivos dueños.
