@@ -32,6 +32,7 @@ import io.ktor.utils.io.readAvailable
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import java.io.File
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Resultado limpio de un player: metadatos del video + streams de audio.
@@ -68,6 +69,20 @@ object Selene {
         ClientProfile.IOS,
     )
 
+    /**
+     * Como [runCatching], pero respetando la cancelación de corrutinas: si el
+     * trabajo fue cancelado, relanza [CancellationException] en vez de
+     * convertirla en un `Result.failure`. De lo contrario la petición en curso
+     * seguiría viva en segundo plano y la cancelación se perdería.
+     */
+    private inline fun <T> catching(block: () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }
+
     @OptIn(ExperimentalSerializationApi::class)
     private fun createClient() = HttpClient(OkHttp) {
         expectSuccess = true
@@ -87,22 +102,29 @@ object Selene {
      * playabilityStatus OK; si ninguno lo logra, devuelve la última
      * respuesta (con su motivo de error) para que el llamador decida.
      */
-    suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerData> = runCatching {
+    suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerData> = catching {
         var lastResponse: PlayerResponse? = null
+        var lastProfile: ClientProfile? = null
         var lastError: Throwable? = null
 
         for (profile in profiles) {
             try {
                 val response = fetcher.fetch(profile, videoId, playlistId)
                 lastResponse = response
+                lastProfile = profile
                 if (response.playabilityStatus?.status == "OK") {
-                    return@runCatching response.toPlayerData(profile.clientName)
+                    return@catching response.toPlayerData(profile.clientName)
                 }
+            } catch (e: CancellationException) {
+                // Nunca convertir una cancelación en "probemos el siguiente cliente".
+                throw e
             } catch (e: Throwable) {
                 lastError = e
             }
         }
-        lastResponse?.toPlayerData(profiles.last().clientName)
+        // El cliente reportado es el del perfil que realmente trajo la última
+        // respuesta, no el último de la lista (puede haber fallado antes).
+        lastResponse?.toPlayerData(lastProfile?.clientName ?: profiles.last().clientName)
             ?: throw (lastError ?: IllegalStateException("No player data"))
     }
 
@@ -129,7 +151,7 @@ object Selene {
         videoId: String,
         destinationDir: File = File("."),
         onProgress: (downloaded: Long, total: Long?) -> Unit = { _, _ -> },
-    ): Result<File> = runCatching {
+    ): Result<File> = catching {
         val playerData = player(videoId).getOrThrow()
 
         // Probamos los streams de mejor a peor: si uno está capado, el
@@ -142,19 +164,29 @@ object Selene {
 
         var lastError: Throwable? = null
         var cappedMessage: String? = null
+        var incompleteMessage: String? = null
         for (stream in candidates) {
             try {
-                return@runCatching downloadStream(playerData, stream, destinationDir, onProgress)
+                return@catching downloadStream(playerData, stream, destinationDir, onProgress)
             } catch (e: StreamCappedException) {
                 cappedMessage = e.message
+                lastError = e
+            } catch (e: StreamIncompleteException) {
+                // Un stream que se cortó antes de tiempo puede ser el mismo cap
+                // visto desde otro formato: probamos el siguiente en vez de abortar.
+                incompleteMessage = e.message
                 lastError = e
             } catch (e: StreamHttpException) {
                 lastError = e
             }
         }
-        // Si algún formato llegó a descargar ~1 MB y se cortó, el problema
-        // es el límite de IP: lo reportamos con prioridad sobre el error HTTP.
-        error(cappedMessage ?: "No se pudo descargar ningún stream de audio: ${lastError?.message}")
+        // Si algún formato llegó a descargar ~1 MB y se cortó, el problema es el
+        // límite de IP: lo reportamos con prioridad sobre el error HTTP.
+        error(
+            cappedMessage
+                ?: incompleteMessage
+                ?: "No se pudo descargar ningún stream de audio: ${lastError?.message}"
+        )
     }
 
     private suspend fun downloadStream(
@@ -207,10 +239,13 @@ object Selene {
             throw e
         }
         // Validación final: si el servidor nos dio el tamaño total, el archivo
-        // debe coincidir (detecta bucles de descarga o respuestas raras).
+        // debe coincidir (detecta bucles de descarga o respuestas truncadas).
         if (total != null && file.length() != total) {
+            val received = file.length() // leerlo antes de borrar, o siempre diría 0
             file.delete()
-            error("Descarga incompleta: se esperaban $total bytes pero se recibieron ${file.length()}")
+            throw StreamIncompleteException(
+                "Descarga incompleta: se esperaban $total bytes pero se recibieron $received"
+            )
         }
         return file
     }
@@ -249,6 +284,13 @@ object Selene {
     /** Error HTTP del servidor de streams (Range rechazado, IP limitada...). */
     private class StreamHttpException(val status: Int) : Exception("HTTP $status")
 
+    /**
+     * El stream se cortó antes de completar el tamaño que anunciaba: puede ser
+     * la misma protección anti-descarga vista desde otro formato, así que el
+     * descargador prueba el siguiente en lugar de abortar.
+     */
+    private class StreamIncompleteException(message: String) : Exception(message)
+
     /** El stream solo sirve los primeros ~1 MB (protección anti-descarga de música). */
     private class StreamCappedException : Exception(
         "Este video está protegido por su sello discográfico: YouTube solo sirve " +
@@ -263,7 +305,7 @@ object Selene {
      * Busca en YouTube Music. Sin filtro devuelve la mezcla completa
      * ("Todo"); con filtro devuelve el shelf tipado + continuation.
      */
-    suspend fun search(query: String, filter: String? = null): Result<SearchResult> = runCatching {
+    suspend fun search(query: String, filter: String? = null): Result<SearchResult> = catching {
         if (filter == null) {
             SearchParser.parseAll(searchFetcher.search(query, null, null))
         } else {
@@ -272,12 +314,12 @@ object Selene {
     }
 
     /** Pagina una búsqueda filtrada a partir de su continuation. */
-    suspend fun searchContinuation(continuation: String): Result<SearchResult> = runCatching {
+    suspend fun searchContinuation(continuation: String): Result<SearchResult> = catching {
         SearchParser.parseContinuation(searchFetcher.search(null, null, continuation))
     }
 
     /** Sugerencias de autocompletado para el texto de búsqueda. */
-    suspend fun searchSuggestions(input: String): Result<SearchSuggestions> = runCatching {
+    suspend fun searchSuggestions(input: String): Result<SearchSuggestions> = catching {
         val response = searchFetcher.suggestions(input)
         SearchSuggestions(
             queries = response.contents.orEmpty().flatMap { section ->
@@ -292,19 +334,19 @@ object Selene {
     // ============ Browse (páginas de contenido) ============
 
     /** Página completa de un álbum: metadatos + canciones + otras versiones. */
-    suspend fun album(browseId: String): Result<AlbumPage> = runCatching {
+    suspend fun album(browseId: String): Result<AlbumPage> = catching {
         BrowseParser.parseAlbum(browseFetcher.browse(browseId = browseId), browseId)
             ?: error("No se pudo parsear el álbum $browseId")
     }
 
     /** Página completa de un artista: header + secciones (canciones, álbumes...). */
-    suspend fun artist(browseId: String): Result<ArtistPage> = runCatching {
+    suspend fun artist(browseId: String): Result<ArtistPage> = catching {
         BrowseParser.parseArtist(browseFetcher.browse(browseId = browseId), browseId)
             ?: error("No se pudo parsear el artista $browseId")
     }
 
     /** Página completa de una playlist: metadatos + canciones + continuación. */
-    suspend fun playlist(playlistId: String): Result<PlaylistPage> = runCatching {
+    suspend fun playlist(playlistId: String): Result<PlaylistPage> = catching {
         BrowseParser.parsePlaylist(
             browseFetcher.browse(browseId = "VL$playlistId"),
             playlistId,
@@ -313,7 +355,7 @@ object Selene {
 
     /** Pagina las canciones de una playlist a partir de su continuation. */
     suspend fun playlistContinuation(continuation: String): Result<PlaylistContinuationPage> =
-        runCatching {
+        catching {
             BrowseParser.parsePlaylistContinuation(browseFetcher.browse(continuation = continuation))
         }
 
@@ -328,7 +370,7 @@ object Selene {
     suspend fun next(
         endpoint: UpNextEndpoint,
         continuation: String? = null,
-    ): Result<NextResult> = runCatching {
+    ): Result<NextResult> = catching {
         val response = queueFetcher.next(
             NextRequest(
                 context = webRemixContext(),
