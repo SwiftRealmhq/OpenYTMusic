@@ -69,6 +69,31 @@ Salidas:
 > El release requiere firma manual (`apksigner`) con la keystore privada. La keystore **no** vive
 > en este repositorio y **no se comparte** con contribuidores.
 
+## API (YouTube Music / InnerTube)
+
+Velqi Luna no depende de servicios de terceros para el contenido: se comunica directamente con
+el **cliente InnerTube** de YouTube Music — la misma API interna que usa la aplicación oficial.
+Toda la implementación vive en el módulo `innertube` (`com.rootleo.velqi.innertube`).
+
+Endpoints principales expuestos:
+
+| Endpoint | Uso | Página tipada |
+|---|---|---|
+| `browse` | Home, explorar, álbumes, artistas, playlists | `HomePage`, `AlbumPage`, `ArtistPage`, `PlaylistPage` |
+| `search` | Búsqueda global y sugerencias | `SearchPage`, `SearchSuggestionPage` |
+| `player` | Obtención de streams para reproducir | `PlayerResponse` |
+| `next` | Cola y canciones relacionadas | `NextPage`, `RelatedPage` |
+
+Reglas de uso:
+
+- Todo el tráfico es HTTPS; las peticiones llevan un `context` de cliente (idioma, región y client version).
+- Las respuestas llegan como renderers de YouTube y el módulo las parsea a **modelos tipados**
+  (`models/`), que es lo único que consume el módulo `app`.
+- Si necesitas tocar algo de contenido: cambia solo lo que expone el módulo `innertube`;
+  la capa de UI nunca habla con la API directamente.
+- No modifiques la lógica de obtención de streams sin validar en dispositivo: cualquier cambio
+  ahí afecta la reproducción global de la app.
+
 ## Testear vía código
 
 - Ejecutar el **linter** de Kotlin: `./gradlew :app:lintFossDebug`
