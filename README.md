@@ -1,7 +1,10 @@
 # 🌙 Velqi Luna
 
+> 🎉 **Felicidades.** Si estás leyendo esto es porque eres un **contribuidor autorizado** de Velqi Luna.
+> Si eres el creador original, ignora este mensaje.
+
 > **v0.3.0** · Repositorio **privado** · Código **cerrado**
-> Autor: **Diego Leo** · Acceso restringido únicamente al creador y contribuidores autorizados.
+> Autor: **Leo** · Acceso restringido únicamente al creador y contribuidores autorizados.
 
 > ⚠️ **CONFIDENCIAL** — Este repositorio contiene el código fuente completo de Velqi Luna. El acceso está
 > limitado por invitación explícita del autor. Queda prohibida la copia, distribución, publicación,
@@ -98,7 +101,7 @@ La estrategia de testing es conservadora: los cambios deben validarse en disposi
 - **Versión**: 0.3.0 (release universal, firmada)
 - **Visibilidad**: privado — no público, no forkable, sin mirrors
 - **Propósito del repo**: copia de seguridad en la nube y colaboración cerrada
-- **Licencia**: código cerrado — todos los derechos reservados por Diego Leo
+- **Licencia**: código cerrado — todos los derechos reservados por Leo
 
 ## Disclaimer
 
