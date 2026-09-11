@@ -102,6 +102,26 @@
     <string name="downloading">Downloading</string>
     <string name="remove_download">Remove download</string>
     <string name="import_playlist">Import playlist</string>
+    <string name="import_from_ym_title">Import from YouTube Music</string>
+    <string name="import_from_ym_desc">Bring your playlists and liked songs to Luna</string>
+    <string name="import_title">Import from YouTube Music</string>
+    <string name="import_login_required">You are not logged in</string>
+    <string name="import_login_hint">Log in with your Google account to import your YouTube Music playlists and liked songs.</string>
+    <string name="import_loading">Loading your playlists…</string>
+    <string name="import_pick_title">Choose what to import</string>
+    <string name="import_select_all">Select all</string>
+    <string name="import_clear">Clear</string>
+    <string name="import_liked_songs">Liked songs</string>
+    <string name="import_liked_item">Liked songs</string>
+    <string name="import_start">Import (%1$d)</string>
+    <string name="import_progress">Playlist %1$d of %2$d</string>
+    <string name="importing">Importing…</string>
+    <string name="import_done_title">All done</string>
+    <string name="import_done_summary">%1$d playlist(s) with %2$d songs added to your library</string>
+    <string name="import_failed_count">%1$d playlist(s) could not be imported</string>
+    <string name="import_done_back">Back</string>
+    <string name="import_cancel">Cancel</string>
+    <string name="import_load_error">Could not load your playlists. Check your connection and try again.</string>
     <string name="add_to_playlist">Add to playlist</string>
     <string name="view_artist">View artist</string>
     <string name="view_album">View album</string>
@@ -214,9 +234,16 @@
     <!-- Player -->
     <string name="lyrics_not_found">Lyrics not found</string>
     <string name="sleep_timer">Sleep timer</string>
+    <string name="sleep_timer_off">Turn off timer</string>
+    <string name="sleep_timer_end_of_song">Stop at end of song</string>
+    <string name="sleep_timer_start">Start timer</string>
+    <string name="sleep_timer_inactive">Timer off</string>
+    <string name="sleep_timer_active_in">Music stops in %1$s</string>
+    <string name="sleep_timer_active_end_of_song">Music stops at the end of this song</string>
     <string name="now_playing">Now Playing</string>
+    <!-- Posicion en la cola sobre la portada, ej: "2 of 12" -->
+    <string name="queue_position">%1$d of %2$d</string>
     <string name="lyrics">Lyrics</string>
-    <string name="end_of_song">End of song</string>
     <plurals name="minute">
         <item quantity="one">1 minute</item>
         <item quantity="other">%d minutes</item>
@@ -279,6 +306,9 @@
     <string name="action_logout">Log out</string>
     <string name="action_login">Log in</string>
     <string name="login">Login</string>
+    <string name="logout">Log out of YouTube Music</string>
+    <string name="use_this_account">Use this account</string>
+    <string name="switch_account">Switch YouTube Music account</string>
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
 
@@ -353,7 +383,11 @@
     <string name="enable_discord_rpc">Enable Rich Presence</string>
 
     <string name="about">About</string>
-    <string name="about_author">Velqi Luna by Diego Leo</string>
+    <string name="about_app_desc">Listen to your favorite music from YouTube, with background playback, lyrics and a clean ad-free interface.</string>
+    <string name="about_app_version">App version</string>
+    <string name="about_links">Links</string>
+    <string name="about_website">Official website</string>
+    <string name="about_developed_by">Developed by: Leo</string>
     <string name="contact_me">Contact me:</string>
     <string name="join_discord">Contact me on Discord</string>
     <string name="website">Website</string>

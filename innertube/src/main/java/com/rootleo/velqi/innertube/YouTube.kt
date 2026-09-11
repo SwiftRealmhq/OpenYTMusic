@@ -9,6 +9,7 @@ import com.rootleo.velqi.innertube.models.GridRenderer
 import com.rootleo.velqi.innertube.models.MusicCarouselShelfRenderer
 import com.rootleo.velqi.innertube.models.PlaylistItem
 import com.rootleo.velqi.innertube.models.SearchSuggestions
+import com.rootleo.velqi.innertube.models.SectionListRenderer
 import com.rootleo.velqi.innertube.models.SongItem
 import com.rootleo.velqi.innertube.models.WatchEndpoint
 import com.rootleo.velqi.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
@@ -279,6 +280,100 @@ object YouTube {
         }
     }
 
+    /**
+     * Velqi: playlists PROPIAS de la cuenta (Biblioteca -> Playlists).
+     * El landing (FEmusic_library_landing) muestra "chips" de filtro
+     * (Albumes/Artistas/Playlists/Videos); cada chip trae su propio
+     * browseId+params. Recorremos todos los chips y colectamos las
+     * playlists de cada pagina filtrada - sin hardcodear nada.
+     */
+    suspend fun libraryPlaylists(): Result<List<PlaylistItem>> = runCatching {
+        fun parseContents(contents: List<SectionListRenderer.Content>?): List<PlaylistItem> =
+            contents?.flatMap { content ->
+                val twoRowItems = content.gridRenderer?.items?.mapNotNull { it.musicTwoRowItemRenderer }
+                    ?: content.musicCarouselShelfRenderer?.contents?.mapNotNull { it.musicTwoRowItemRenderer }
+                    ?: emptyList()
+                twoRowItems.mapNotNull { renderer ->
+                    ArtistItemsPage.fromMusicTwoRowItemRenderer(renderer) as? PlaylistItem
+                        // Rescate: las playlists PRIVADAS de la cuenta llegan sin
+                        // browseEndpointContextSupportedConfigs y el parser las bota.
+                        // El prefijo "VL" del browseId es marca inequivoca de playlist.
+                        ?: renderer.navigationEndpoint?.browseEndpoint?.browseId
+                            ?.takeIf { it.startsWith("VL") }
+                            ?.let { browseId ->
+                                PlaylistItem(
+                                    id = browseId.removePrefix("VL"),
+                                    title = renderer.title.runs?.firstOrNull()?.text ?: return@let null,
+                                    author = renderer.subtitle?.runs?.getOrNull(2)?.let {
+                                        Artist(name = it.text, id = it.navigationEndpoint?.browseEndpoint?.browseId)
+                                    },
+                                    songCountText = renderer.subtitle?.runs?.getOrNull(4)?.text,
+                                    thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl().orEmpty(),
+                                    playEndpoint = null,
+                                    shuffleEndpoint = WatchEndpoint(playlistId = browseId.removePrefix("VL")),
+                                    radioEndpoint = null
+                                )
+                            }
+                }
+            }.orEmpty()
+
+        val landingBody = innerTube.browse(
+            client = WEB_REMIX,
+            browseId = "FEmusic_library_landing",
+            setLogin = true
+        ).bodyAsText()
+        // logcat corta lineas largas (~4KB): troceamos para ver la respuesta completa
+        landingBody.chunked(2000).forEachIndexed { i, chunk ->
+            println("VELQIDBG: raw[$i]=$chunk")
+        }
+        // Json tolerante (mismo config que el cliente): sin esto un key desconocido
+        // (ej. maxAgeSeconds) mata el decode de toda la respuesta.
+        val landing = Json { ignoreUnknownKeys = true; explicitNulls = false }.decodeFromString<BrowseResponse>(landingBody)
+        val landingSectionList = landing.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.sectionListRenderer
+        println("VELQIDBG: import: landing secciones=${landingSectionList?.contents?.map { c ->
+            listOfNotNull(
+                if (c.gridRenderer != null) "grid(items=${c.gridRenderer?.items?.size})" else null,
+                if (c.musicShelfRenderer != null) "shelf(items=${c.musicShelfRenderer?.contents?.size})" else null,
+                if (c.musicCarouselShelfRenderer != null) "carousel" else null,
+                if (c.musicPlaylistShelfRenderer != null) "playlistShelf" else null,
+            ).ifEmpty { listOf("otro") }
+        }} continuation=${landingSectionList?.continuations != null}")
+
+        val chips = (landingSectionList?.header?.chipCloudRenderer
+            ?: landingSectionList?.header?.musicSideAlignedItemRenderer?.startItems
+                ?.firstOrNull()?.chipCloudRenderer)?.chips.orEmpty()
+        println("VELQIDBG: import: landing chips=${chips.map { it.chipCloudChipRenderer.text?.runs?.firstOrNull()?.text to (it.chipCloudChipRenderer.navigationEndpoint?.browseEndpoint?.params != null) }}")
+
+        val playlists = mutableListOf<PlaylistItem>()
+        playlists += parseContents(landingSectionList?.contents)
+
+        // Pagina completa de playlists: el chip cuyo endpoint apunta a FEmusic_playlists
+        val playlistChip = chips.map { it.chipCloudChipRenderer }.firstOrNull {
+            it.navigationEndpoint?.browseEndpoint?.browseId == "FEmusic_liked_playlists"
+        }
+        if (playlistChip != null) {
+            val full = innerTube.browse(
+                client = WEB_REMIX,
+                browseId = playlistChip.navigationEndpoint?.browseEndpoint?.browseId,
+                params = playlistChip.navigationEndpoint?.browseEndpoint?.params,
+                setLogin = true
+            ).body<BrowseResponse>()
+            var continuation: String? = null
+            do {
+                val contents = full.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
+                    ?.tabRenderer?.content?.sectionListRenderer?.contents
+                playlists += parseContents(contents)
+                continuation = contents?.lastOrNull()?.gridRenderer?.continuations?.getContinuation()
+            } while (continuation != null)
+        } else {
+            println("VELQIDBG: import: entrando por chip FEmusic_liked_playlists (pagina completa de la cuenta)")
+        }
+        playlists.distinctBy { it.id }.also {
+            println("VELQIDBG: import: libraryPlaylists parse final count=${it.size}")
+        }
+    }
+
     suspend fun playlist(playlistId: String): Result<PlaylistPage> = runCatching {
         val response = innerTube.browse(
             client = WEB_REMIX,
@@ -287,33 +382,34 @@ object YouTube {
         ).body<BrowseResponse>()
         val base = response.contents?.twoColumnBrowseResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()
         val header = base?.musicResponsiveHeaderRenderer ?: base?.musicEditablePlaylistDetailHeaderRenderer?.header?.musicResponsiveHeaderRenderer
+        // Velqi: sin !! - las playlists privadas de la cuenta no traen todos los
+        // botones (ej. radio) y los !! lanzaban NPE revendiendo la carga completa.
+        val shelf = response.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents?.firstOrNull()?.musicPlaylistShelfRenderer
         PlaylistPage(
             playlist = PlaylistItem(
                 id = playlistId,
-                title = header?.title?.runs?.firstOrNull()?.text!!,
-                author = header.straplineTextOne?.runs?.firstOrNull()?.let {
+                title = header?.title?.runs?.firstOrNull()?.text ?: playlistId,
+                author = header?.straplineTextOne?.runs?.firstOrNull()?.let {
                     Artist(
                         name = it.text,
                         id = it.navigationEndpoint?.browseEndpoint?.browseId
                     )
                 },
-                songCountText = header.secondSubtitle?.runs?.firstOrNull()?.text,
-                thumbnail = header.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url!!,
+                songCountText = header?.secondSubtitle?.runs?.firstOrNull()?.text,
+                thumbnail = header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url.orEmpty(),
                 playEndpoint = null,
-                shuffleEndpoint = header.buttons?.lastOrNull()?.menuRenderer?.items?.firstOrNull()?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint!!,
-                radioEndpoint = header.buttons.lastOrNull()?.menuRenderer?.items!!.find {
+                shuffleEndpoint = header?.buttons?.lastOrNull()?.menuRenderer?.items?.firstOrNull()?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
+                    ?: WatchEndpoint(playlistId = playlistId),
+                radioEndpoint = header?.buttons?.lastOrNull()?.menuRenderer?.items?.find {
                     it.menuNavigationItemRenderer?.icon?.iconType == "MIX"
-                }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint!!
+                }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
             ),
-            songs = response.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents
-                ?.firstOrNull()?.musicPlaylistShelfRenderer?.contents?.mapNotNull {
-                    PlaylistPage.fromMusicResponsiveListItemRenderer(it.musicResponsiveListItemRenderer)
-                }!!,
-            songsContinuation = response.contents.twoColumnBrowseResultsRenderer.secondaryContents.sectionListRenderer
-                .contents.firstOrNull()
-                ?.musicPlaylistShelfRenderer?.continuations?.getContinuation(),
-            continuation = response.contents.twoColumnBrowseResultsRenderer.secondaryContents.sectionListRenderer
-                .continuations?.getContinuation()
+            songs = shelf?.contents?.mapNotNull {
+                PlaylistPage.fromMusicResponsiveListItemRenderer(it.musicResponsiveListItemRenderer)
+            }.orEmpty(),
+            songsContinuation = shelf?.continuations?.getContinuation(),
+            continuation = response.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer
+                ?.continuations?.getContinuation()
         )
     }
 
@@ -415,17 +511,83 @@ object YouTube {
     }
 
     suspend fun likedPlaylists(): Result<List<PlaylistItem>> = runCatching {
-        val response = innerTube.browse(
+        val pageBody = innerTube.browse(
             client = WEB_REMIX,
             browseId = "FEmusic_liked_playlists",
             setLogin = true
-        ).body<BrowseResponse>()
-        response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()?.gridRenderer?.items!!
+        ).bodyAsText()
+        // Velqi: dump troceado para diagnostico (logcat corta lineas de ~4KB)
+        pageBody.chunked(2000).forEachIndexed { i, chunk ->
+            println("VELQIDBG: likedPage[$i]=$chunk")
+        }
+        val response = Json { ignoreUnknownKeys = true; explicitNulls = false }.decodeFromString<BrowseResponse>(pageBody)
+        // Velqi: sin !! - un response inesperado no debe morir en silencio;
+        // devuelve lista vacia y la pantalla muestra "reintentar".
+        // Ademas: parseamos TODAS las secciones, no solo la primera - las
+        // playlists propias pueden venir en una seccion distinta al grid inicial.
+        val allContents = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.sectionListRenderer?.contents.orEmpty()
+        println("VELQIDBG: import: likedPage secciones=${allContents.map { c ->
+            listOfNotNull(
+                if (c.gridRenderer != null) "grid(items=${c.gridRenderer?.items?.size})" else null,
+                if (c.musicShelfRenderer != null) "shelf(items=${c.musicShelfRenderer?.contents?.size})" else null,
+                if (c.musicCarouselShelfRenderer != null) "carousel" else null,
+                if (c.musicPlaylistShelfRenderer != null) "playlistShelf" else null,
+            ).ifEmpty { listOf("otro") }
+        }}")
+        val grid = allContents.firstOrNull()?.gridRenderer
+        val items = grid?.items ?: emptyList()
+        val parsed = items
             .drop(1) // the first item is "create new playlist"
             .mapNotNull(GridRenderer.Item::musicTwoRowItemRenderer)
-            .mapNotNull {
-                ArtistItemsPage.fromMusicTwoRowItemRenderer(it) as? PlaylistItem
-            }
+            .mapNotNull { renderer ->
+                ArtistItemsPage.fromMusicTwoRowItemRenderer(renderer) as? PlaylistItem
+                    // Rescate VL: playlists privadas pueden llegar sin el campo
+                    // de clasificacion; el prefijo VL del browseId es marca de playlist.
+                    ?: renderer.navigationEndpoint?.browseEndpoint?.browseId
+                        ?.takeIf { it.startsWith("VL") }
+                        ?.let { browseId ->
+                            PlaylistItem(
+                                id = browseId.removePrefix("VL"),
+                                title = renderer.title.runs?.firstOrNull()?.text ?: return@let null,
+                                author = renderer.subtitle?.runs?.getOrNull(2)?.let {
+                                    Artist(name = it.text, id = it.navigationEndpoint?.browseEndpoint?.browseId)
+                                },
+                                songCountText = renderer.subtitle?.runs?.getOrNull(4)?.text,
+                                thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl().orEmpty(),
+                                playEndpoint = null,
+                                shuffleEndpoint = WatchEndpoint(playlistId = browseId.removePrefix("VL")),
+                                radioEndpoint = null
+                            )
+                        }
+            }.toMutableList()
+        println("VELQIDBG: import: likedPlaylists grid items=${items.size} parseados=${parsed.size} continuation=${grid?.continuations != null}")
+        // Paginacion: traer las paginas siguientes del grid si existen
+        var continuation = grid?.continuations?.getContinuation()
+        while (continuation != null) {
+            val next = innerTube.browse(
+                client = WEB_REMIX,
+                continuation = continuation,
+                setLogin = true
+            ).body<BrowseResponse>()
+            val nextItems: List<GridRenderer.Item>
+            val nextContinuation: String?
+            val nextSectionGrid = next.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
+                ?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()?.gridRenderer
+            val nextGridCont = next.continuationContents?.gridContinuation
+            if (nextSectionGrid != null) {
+                nextItems = nextSectionGrid.items
+                nextContinuation = nextSectionGrid.continuations?.getContinuation()
+            } else if (nextGridCont != null) {
+                nextItems = nextGridCont.items
+                nextContinuation = nextGridCont.continuations?.getContinuation()
+            } else break
+            parsed += nextItems
+                .mapNotNull(GridRenderer.Item::musicTwoRowItemRenderer)
+                .mapNotNull { renderer -> ArtistItemsPage.fromMusicTwoRowItemRenderer(renderer) as? PlaylistItem }
+            continuation = nextContinuation
+        }
+        parsed
     }
 
     suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerResponse> = runCatching {
@@ -580,10 +742,14 @@ object YouTube {
     }
 
     suspend fun accountInfo(): Result<AccountInfo> = runCatching {
-        innerTube.accountMenu(WEB_REMIX).body<AccountMenuResponse>()
-            .actions[0].openPopupAction.popup.multiPageMenuRenderer
-            .header?.activeAccountHeaderRenderer
-            ?.toAccountInfo()!!
+        val response = innerTube.accountMenu(WEB_REMIX).body<AccountMenuResponse>()
+        // Velqi: el menu a veces llega sin header (respuesta lenta del WebView al
+        // navegar); antes el !! lanzaba NullPointerException y se reportaba como
+        // fallo de login aunque las cookies estuvieran guardadas.
+        val header = response.actions.firstOrNull()?.openPopupAction?.popup?.multiPageMenuRenderer
+            ?.header?.activeAccountHeaderRenderer
+            ?: error("account menu sin header de cuenta")
+        header.toAccountInfo()
     }
 
     @JvmInline

@@ -27,6 +27,7 @@ import com.rootleo.velqi.ui.screens.settings.AboutScreen
 import com.rootleo.velqi.ui.screens.settings.AppearanceSettings
 import com.rootleo.velqi.ui.screens.settings.BackupAndRestore
 import com.rootleo.velqi.ui.screens.settings.ContentSettings
+import com.rootleo.velqi.ui.screens.settings.ImportScreen
 import com.rootleo.velqi.ui.screens.settings.DiscordLoginScreen
 import com.rootleo.velqi.ui.screens.settings.DiscordSettings
 import com.rootleo.velqi.ui.screens.settings.PlayerSettings
@@ -224,5 +225,8 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("login") {
         LoginScreen(navController)
+    }
+    composable("settings/import") {
+        ImportScreen(navController, scrollBehavior)
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.datastore.preferences.core.edit
 import androidx.navigation.NavController
+import com.rootleo.velqi.innertube.YouTube
 import com.rootleo.velqi.innertube.utils.parseCookieString
 import com.rootleo.velqi.LocalPlayerAwareWindowInsets
 import com.rootleo.velqi.R
@@ -37,6 +38,7 @@ import com.rootleo.velqi.constants.EnableKugouKey
 import com.rootleo.velqi.constants.EnableLrcLibKey
 import com.rootleo.velqi.constants.HideExplicitKey
 import com.rootleo.velqi.constants.InnerTubeCookieKey
+import com.rootleo.velqi.constants.VisitorDataKey
 import com.rootleo.velqi.constants.LanguageCodeToName
 import com.rootleo.velqi.constants.ProxyEnabledKey
 import com.rootleo.velqi.constants.ProxyTypeKey
@@ -63,13 +65,6 @@ fun ContentSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    val accountName by rememberPreference(AccountNameKey, "")
-    val accountEmail by rememberPreference(AccountEmailKey, "")
-    val accountChannelHandle by rememberPreference(AccountChannelHandleKey, "")
-    val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
-    val isLoggedIn = remember(innerTubeCookie) {
-        "SAPISID" in parseCookieString(innerTubeCookie)
-    }
     val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = "system")
     val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = "system")
     val (hideExplicit, onHideExplicitChange) = rememberPreference(key = HideExplicitKey, defaultValue = false)
@@ -91,17 +86,6 @@ fun ContentSettings(
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
 
-        // Oculto temporalmente: el login de Google (YouTube Music) se reactiva
-        // en una futura version.
-        // PreferenceEntry(
-        //     title = { Text(if (isLoggedIn) accountName else stringResource(R.string.login)) },
-        //     description = if (isLoggedIn) {
-        //         accountEmail.takeIf { it.isNotEmpty() }
-        //             ?: accountChannelHandle.takeIf { it.isNotEmpty() }
-        //     } else null,
-        //     icon = { Icon(painterResource(R.drawable.person), null) },
-        //     onClick = { navController.navigate("login") }
-        // )
         ListPreference(
             title = { Text(stringResource(R.string.language)) },
             icon = { Icon(painterResource(R.drawable.language), null) },

@@ -7,10 +7,11 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -19,7 +20,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -43,6 +47,10 @@ fun Thumbnail(
     // Tap simple sobre el arte (ej: abrir el visor a pantalla completa).
     // Se dispara dentro del mismo detector para no competir con el doble tap.
     onTap: (() -> Unit)? = null,
+    // En vertical el inset superior ya lo aplica el contenedor del reproductor:
+    // si se aplica aqui tambien se sumaba dos veces y se perdia altura util
+    // (justo la que le hacia falta a la portada).
+    applyStatusBarPadding: Boolean = true,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val currentView = LocalView.current
@@ -59,27 +67,38 @@ fun Thumbnail(
         }
     }
 
-    Box(modifier = modifier) {
+    BoxWithConstraints(
+        // clipToBounds: red de seguridad para que nada de este bloque pueda
+        // pintarse fuera de su hueco (el encabezado y el titulo viven justo
+        // encima y debajo). contentAlignment: la tarjeta va centrada en su
+        // hueco, no pegada a la izquierda.
+        modifier = modifier
+            .clipToBounds()
+            .then(if (applyStatusBarPadding) Modifier.statusBarsPadding() else Modifier),
+        contentAlignment = Alignment.Center
+    ) {
+        // Lado de la tarjeta: el menor de los dos huecos disponibles (menos 8dp
+        // de margen). Se calcula aqui para que el arte NUNCA sea mas grande que
+        // su hueco: cuando el lado salia del ancho, en pantallas bajas el
+        // cuadrado se desbordaba por encima del encabezado y por debajo del
+        // titulo, tapando ambos textos.
+        val artworkSize = (minOf(maxWidth, maxHeight) - 8.dp).coerceAtLeast(0.dp)
+
         AnimatedVisibility(
             visible = !showLyrics && error == null,
             enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
+            exit = fadeOut()
         ) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp)
+                modifier = Modifier.size(artworkSize)
             ) {
                 Box(
-                    // aspectRatio SIN fillMaxWidth: encaja el cuadrado en el
-                    // espacio disponible en vez de forzar el ancho del padre
-                    // (que desbordaba por arriba y tapaba el encabezado).
+                    // Tamano explicito: ni aspectRatio ni fillMaxWidth, que se
+                    // contradecian entre si cuando la altura disponible era
+                    // menor que el 85% del ancho.
                     modifier = Modifier
-                        .aspectRatio(1f)
+                        .size(artworkSize)
                         .clip(RoundedCornerShape(ThumbnailCornerRadius * 2))
                         .background(Color.Black)
                         .pointerInput(Unit) {
@@ -97,6 +116,20 @@ fun Thumbnail(
                             )
                         }
                 ) {
+                    // Fondo: la misma portada recortada ocupa todo el cuadrado,
+                    // asi un video 16:9 llena la tarjeta igual que una caratula
+                    // cuadrada. Antes las canciones con miniatura panoramica
+                    // quedaban con franjas negras y no se veian como las demas.
+                    AsyncImage(
+                        model = mediaMetadata?.thumbnailUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(28.dp)
+                            .alpha(0.55f)
+                    )
+                    // Portada: encaja completa (sin recortar) sobre el fondo
                     AsyncImage(
                         model = mediaMetadata?.thumbnailUrl,
                         contentDescription = null,
@@ -142,7 +175,11 @@ fun Thumbnail(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            Lyrics(sliderPositionProvider = sliderPositionProvider)
+            // Mismo hueco que la portada para que el titulo y los controles de
+            // abajo no pierdan su espacio cuando se abren las letras.
+            Box(modifier = Modifier.size(artworkSize)) {
+                Lyrics(sliderPositionProvider = sliderPositionProvider)
+            }
         }
 
         AnimatedVisibility(

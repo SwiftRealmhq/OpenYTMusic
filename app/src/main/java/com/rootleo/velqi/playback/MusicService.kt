@@ -41,7 +41,6 @@ import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
@@ -250,7 +249,7 @@ class MusicService : MediaLibraryService(),
             .apply {
                 repeatMode = dataStore.get(RepeatModeKey, REPEAT_MODE_ALL)
                 addListener(this@MusicService)
-                sleepTimer = SleepTimer(scope, this)
+                sleepTimer = SleepTimer({ scope }, this)
                 addListener(sleepTimer)
                 addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
             }
@@ -476,13 +475,16 @@ class MusicService : MediaLibraryService(),
         }
     }
 
+    fun toggleShuffle() {
+        player.shuffleModeEnabled = !player.shuffleModeEnabled
+    }
+
     fun playQueue(queue: Queue, playWhenReady: Boolean = true) {
         if (!scope.isActive) {
             scope = CoroutineScope(Dispatchers.Main) + Job()
         }
         currentQueue = queue
         queueTitle = null
-        player.shuffleModeEnabled = false
         // Velqi: al iniciar una cola nueva (cancion/album/playlist) la velocidad y el
         // tono vuelven a 1x/0. Asi un tempo previo nunca deja la musica en x2 sin avisar.
         player.playbackParameters = PlaybackParameters.DEFAULT
@@ -515,15 +517,22 @@ class MusicService : MediaLibraryService(),
 
     fun startRadioSeamlessly() {
         val currentMediaMetadata = player.currentMetadata ?: return
-        if (player.currentMediaItemIndex > 0) player.removeMediaItems(0, player.currentMediaItemIndex)
-        if (player.currentMediaItemIndex < player.mediaItemCount - 1) player.removeMediaItems(player.currentMediaItemIndex + 1, player.mediaItemCount)
         scope.launch(SilentHandler) {
+            // La radio se pide ANTES de tocar la cola. Al reves (vaciarla primero)
+            // cualquier fallo de red dejaba la reproduccion sin nada despues de la
+            // cancion actual, que es justo lo que hacia parecer que no servia.
             val radioQueue = YouTubeQueue(endpoint = WatchEndpoint(videoId = currentMediaMetadata.id))
-            val initialStatus = radioQueue.getInitialStatus()
+            val initialStatus = withContext(Dispatchers.IO) {
+                radioQueue.getInitialStatus().filterExplicit(dataStore.get(HideExplicitKey, false))
+            }
+            val items = initialStatus.items.drop(1)
+            if (items.isEmpty()) return@launch
+            if (player.currentMediaItemIndex > 0) player.removeMediaItems(0, player.currentMediaItemIndex)
+            if (player.currentMediaItemIndex < player.mediaItemCount - 1) player.removeMediaItems(player.currentMediaItemIndex + 1, player.mediaItemCount)
             if (initialStatus.title != null) {
                 queueTitle = initialStatus.title
             }
-            player.addMediaItems(initialStatus.items.drop(1))
+            player.addMediaItems(items)
             currentQueue = radioQueue
         }
     }
@@ -535,6 +544,16 @@ class MusicService : MediaLibraryService(),
 
     fun addToQueue(items: List<MediaItem>) {
         player.addMediaItems(items)
+        // Con aleatorio activo los temas nuevos se reparten en posiciones
+        // aleatorias; si no, quedarian todos al final de la parte barajada
+        if (player.shuffleModeEnabled && items.isNotEmpty()) {
+            val first = player.mediaItemCount - items.size
+            items.indices.forEach { i ->
+                val from = first + i
+                val to = (first until player.mediaItemCount).random()
+                player.moveMediaItem(from, to)
+            }
+        }
         player.prepare()
     }
 
@@ -591,12 +610,38 @@ class MusicService : MediaLibraryService(),
                 }
             }
         }
+
+        // Velqi: con aleatorio activo, solo cuando la cancion TERMINA SOLA (AUTO)
+        // se elige la siguiente al azar. NO se reacciona a SEEK: el salto aleatorio
+        // mismo usa seekTo y reaccionar a SEEK provocaria un bucle infinito (crash).
+        if (player.shuffleModeEnabled && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+            shuffleToRandomNext()
+        }
     }
+
+    /**
+     * Con aleatorio activo: elige al azar la siguiente cancion entre las que no
+     * han sonado en esta sesion de cola (o todas menos la actual si ya sonaron
+     * todas) y salta a ella.
+     */
+    fun shuffleToRandomNext() {
+        if (player.mediaItemCount < 2) return
+        playedMediaIds.add(player.currentMediaItem?.mediaId ?: return)
+        val candidates = (0 until player.mediaItemCount)
+            .filter { it != player.currentMediaItemIndex && player.getMediaItemAt(it).mediaId !in playedMediaIds }
+            .ifEmpty { (0 until player.mediaItemCount).filter { it != player.currentMediaItemIndex } }
+        val target = candidates.random()
+        if (target != player.currentMediaItemIndex) {
+            player.seekTo(target, 0)
+        }
+    }
+
+    /** IDs ya reproducidos desde que se activo el aleatorio. */
+    private val playedMediaIds = mutableSetOf<String>()
 
     override fun onPlaybackStateChanged(@Player.State playbackState: Int) {
         if (playbackState == STATE_IDLE) {
             currentQueue = EmptyQueue
-            player.shuffleModeEnabled = false
             queueTitle = null
         }
     }
@@ -619,13 +664,14 @@ class MusicService : MediaLibraryService(),
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
         updateNotification()
+        // Velqi: el boton solo activa/desactiva el modo, como Spotify/YT Music.
+        // La cola no se reordena; el salto aleatorio ocurre en la siguiente
+        // transicion (ver onMediaItemTransition).
         if (shuffleModeEnabled) {
-            // Always put current playing item at first
-            val shuffledIndices = IntArray(player.mediaItemCount) { it }
-            shuffledIndices.shuffle()
-            shuffledIndices[shuffledIndices.indexOf(player.currentMediaItemIndex)] = shuffledIndices[0]
-            shuffledIndices[0] = player.currentMediaItemIndex
-            player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
+            playedMediaIds.clear()
+            player.currentMediaItem?.mediaId?.let { playedMediaIds.add(it) }
+        } else {
+            playedMediaIds.clear()
         }
     }
 
@@ -643,9 +689,13 @@ class MusicService : MediaLibraryService(),
             isInternetAvailable(this) &&
             player.hasNextMediaItem()
         ) {
-            player.seekToNext()
-            player.prepare()
-            player.playWhenReady = true
+            if (player.shuffleModeEnabled) {
+                shuffleToRandomNext()
+            } else {
+                player.seekToNext()
+                player.prepare()
+                player.playWhenReady = true
+            }
         }
     }
 

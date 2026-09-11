@@ -14,7 +14,19 @@ data class SectionListRenderer(
     @Serializable
     data class Header(
         val chipCloudRenderer: ChipCloudRenderer?,
+        // Velqi: el landing de biblioteca trae el chip cloud aqui,
+        // envuelto en musicSideAlignedItemRenderer.
+        val musicSideAlignedItemRenderer: MusicSideAlignedItemRenderer?,
     ) {
+        @Serializable
+        data class MusicSideAlignedItemRenderer(
+            val startItems: List<StartItem>?,
+        ) {
+            @Serializable
+            data class StartItem(
+                val chipCloudRenderer: ChipCloudRenderer?,
+            )
+        }
         @Serializable
         data class ChipCloudRenderer(
             val chips: List<Chip>,

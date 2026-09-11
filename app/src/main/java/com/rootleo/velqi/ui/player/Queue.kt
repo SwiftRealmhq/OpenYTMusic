@@ -33,11 +33,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -87,6 +87,7 @@ import com.rootleo.velqi.constants.ShowLyricsKey
 import com.rootleo.velqi.extensions.metadata
 import com.rootleo.velqi.extensions.move
 import com.rootleo.velqi.extensions.togglePlayPause
+import com.rootleo.velqi.extensions.toggleShuffle
 import com.rootleo.velqi.ui.component.BottomSheet
 import com.rootleo.velqi.ui.component.BottomSheetState
 import com.rootleo.velqi.ui.component.LocalMenuState
@@ -97,16 +98,13 @@ import com.rootleo.velqi.ui.menu.QueueSelectionMenu
 import com.rootleo.velqi.utils.joinByBullet
 import com.rootleo.velqi.utils.makeTimeString
 import com.rootleo.velqi.utils.rememberPreference
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -470,12 +468,11 @@ fun Queue(
             IconButton(
                 modifier = Modifier.align(Alignment.CenterStart),
                 onClick = {
+                    // El aleatorio reordena la cola fisicamente: al activar, la cancion
+                    // actual queda primera; al apagar, vuelve el orden original
+                    playerConnection.service.toggleShuffle()
                     coroutineScope.launch {
-                        lazyListState.animateScrollToItem(
-                            if (playerConnection.player.shuffleModeEnabled) playerConnection.player.currentMediaItemIndex else 0
-                        )
-                    }.invokeOnCompletion {
-                        playerConnection.player.shuffleModeEnabled = !playerConnection.player.shuffleModeEnabled
+                        lazyListState.animateScrollToItem(0)
                     }
                 }
             ) {
@@ -535,8 +532,25 @@ fun SleepTimerDialog(
     onDismiss: () -> Unit,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
-    var sleepTimerValue by remember {
-        mutableFloatStateOf(30f)
+
+    // Cuenta atras en vivo: se relee el estado del temporizador cada segundo
+    // (isActive cambia al armar/limpiar, triggerTime al reprogramar) para que
+    // lo que se ve siempre coincida con lo que realmente queda.
+    val sleepTimer = playerConnection.service.sleepTimer
+    var isActive by remember { mutableStateOf(sleepTimer.isActive) }
+    var timeLeft by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(sleepTimer.triggerTime, sleepTimer.pauseWhenSongEnd) {
+        while (isActive) {
+            isActive = sleepTimer.isActive
+            timeLeft = if (sleepTimer.pauseWhenSongEnd) {
+                (playerConnection.player.duration - playerConnection.player.currentPosition).coerceAtLeast(0L)
+            } else if (sleepTimer.triggerTime != -1L) {
+                (sleepTimer.triggerTime - System.currentTimeMillis()).coerceAtLeast(0L)
+            } else {
+                0L
+            }
+            delay(1000L)
+        }
     }
 
     AlertDialog(
@@ -544,48 +558,79 @@ fun SleepTimerDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(painter = painterResource(R.drawable.bedtime), contentDescription = null) },
         title = { Text(stringResource(R.string.sleep_timer)) },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onDismiss()
-                    playerConnection.service.sleepTimer.start(sleepTimerValue.roundToInt())
-                }
-            ) {
-                Text(stringResource(android.R.string.ok))
-            }
-        },
+        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(android.R.string.cancel))
+                Text(stringResource(R.string.dismiss))
             }
         },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                val pluralString = pluralStringResource(R.plurals.minute, sleepTimerValue.roundToInt(), sleepTimerValue.roundToInt())
-                val endTimeString = SimpleDateFormat
-                    .getTimeInstance(SimpleDateFormat.SHORT, Locale.getDefault())
-                    .format(Date(System.currentTimeMillis() + (sleepTimerValue.roundToInt() * 60 * 1000).toLong()))
+                // Lo que queda del temporizador activo, en vivo; si no hay
+                // temporizador no se muestra nada de estado
+                if (isActive) {
+                    Text(
+                        text = if (sleepTimer.pauseWhenSongEnd) {
+                            stringResource(R.string.sleep_timer_active_end_of_song)
+                        } else {
+                            stringResource(R.string.sleep_timer_active_in, makeTimeString(timeLeft))
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
 
+                // Eleccion del tiempo con una barra: 5 a 120 minutos, marcas cada 5
+                var sliderMinutes by remember { mutableFloatStateOf(30f) }
                 Text(
-                    text = "$pluralString\n$endTimeString",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    text = "${sliderMinutes.roundToInt()} min",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
-
                 Slider(
-                    value = sleepTimerValue,
-                    onValueChange = { sleepTimerValue = it },
+                    value = sliderMinutes,
+                    onValueChange = { sliderMinutes = it },
                     valueRange = 5f..120f,
+                    steps = 22,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedButton(
+                Button(
                     onClick = {
+                        playerConnection.service.sleepTimer.start(sliderMinutes.roundToInt())
                         onDismiss()
-                        playerConnection.service.sleepTimer.start(-1)
-                    }
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(stringResource(R.string.end_of_song))
+                    Text(stringResource(R.string.sleep_timer_start))
+                }
+
+                // Alternativa: parar cuando termine la cancion actual (con cuenta
+                // atras real de lo que queda del tema, arriba en el estado vivo)
+                TextButton(
+                    onClick = {
+                        playerConnection.service.sleepTimer.start(-1)
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.sleep_timer_end_of_song))
+                }
+
+                // Apagar: solo existe cuando hay algo activo
+                if (isActive) {
+                    TextButton(
+                        onClick = {
+                            playerConnection.service.sleepTimer.clear()
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.sleep_timer_off))
+                    }
                 }
             }
         }

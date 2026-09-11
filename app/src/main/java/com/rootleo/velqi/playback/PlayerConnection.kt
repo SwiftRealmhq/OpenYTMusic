@@ -125,7 +125,14 @@ class PlayerConnection(
     }
 
     fun seekToNext() {
-        player.seekToNext()
+        // Velqi: con aleatorio activo, "siguiente" salta a una cancion al azar
+        // (como Spotify). El seek interno dispara SEEK, que el servicio ignora,
+        // asi que no hay bucle.
+        if (player.shuffleModeEnabled) {
+            service.shuffleToRandomNext()
+        } else {
+            player.seekToNext()
+        }
         player.prepare()
         player.playWhenReady = true
     }

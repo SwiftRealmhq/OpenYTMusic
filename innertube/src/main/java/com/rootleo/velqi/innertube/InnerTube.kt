@@ -181,9 +181,12 @@ class InnerTube {
                 params = params
             )
         )
-        parameter("continuation", continuation)
-        parameter("ctoken", continuation)
         if (continuation != null) {
+            // Velqi: solo con continuation real. Antes parameter(name, null) enviaba
+            // la cadena "null" (continuation=null&ctoken=null) y YouTube respondia
+            // 400 INVALID_ARGUMENT en cualquier browse paginado desde la primera pagina.
+            parameter("continuation", continuation)
+            parameter("ctoken", continuation)
             parameter("type", "next")
         }
     }

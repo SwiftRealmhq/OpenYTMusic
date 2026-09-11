@@ -2,6 +2,7 @@ package com.rootleo.velqi.ui.player
 
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -51,8 +52,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
@@ -122,7 +125,7 @@ fun BottomSheetPlayer(
         MaterialTheme.colorScheme.surfaceContainer
     }
 
-    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.SQUIGGLY)
+    val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
 
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -130,7 +133,6 @@ fun BottomSheetPlayer(
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
-    val queueTitle by playerConnection.queueTitle.collectAsState()
 
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
@@ -210,79 +212,60 @@ fun BottomSheetPlayer(
             )
         }
     ) {
-        // Overlay de la portada: solo los botones (share/corazon/menu) en la
-        // esquina inferior derecha DENTRO del arte. El nombre de la cancion
-        // ya se muestra en el encabezado (bajo Now Playing), asi que aqui es
-        // redundante.
-        val coverOverlay: @Composable BoxScope.(MediaMetadata) -> Unit = { mediaMetadata ->
+        // Posicion en la cola ("2 de 12") en la esquina inferior izquierda
+        // DENTRO de la portada, como en la referencia.
+        val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
+        val queueWindows by playerConnection.queueWindows.collectAsState()
+        val positionOverlay: @Composable BoxScope.(MediaMetadata) -> Unit = {
+            val total = queueWindows.size
+            val index = currentWindowIndex
+            if (total > 0 && index in 0 until total) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 14.dp, bottom = 12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.queue_position, index + 1, total),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.8f),
+                                offset = Offset(0f, 1f),
+                                blurRadius = 8f
+                            )
+                        ),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+
+        // Acciones rapidas del reproductor: like y menu. La radio se quito de
+        // aqui porque ya vive en el menu "..." y su icono no decia nada.
+        val actionsRow: @Composable () -> Unit = {
             Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
-                // Compartir cancion
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .clickable {
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://music.youtube.com/watch?v=${mediaMetadata.id}")
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
-                        }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.share),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                PlayerActionButton(
+                    icon = if (currentSong?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border,
+                    tint = if (currentSong?.song?.liked == true) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    onClick = playerConnection::toggleLike
+                )
 
-                Spacer(Modifier.width(12.dp))
-
-                // Like / dislike
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .clickable(onClick = playerConnection::toggleLike)
-                ) {
-                    Icon(
-                        painter = painterResource(if (currentSong?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border),
-                        contentDescription = null,
-                        tint = if (currentSong?.song?.liked == true) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            Color.White
-                        },
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                // Menu del player
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .clickable {
+                mediaMetadata?.let { metadata ->
+                    PlayerActionButton(
+                        icon = R.drawable.more_horiz,
+                        onClick = {
                             menuState.show {
                                 PlayerMenu(
-                                    mediaMetadata = mediaMetadata,
+                                    mediaMetadata = metadata,
                                     navController = navController,
                                     bottomSheetState = state,
                                     onShowDetailsDialog = { showDetailsDialog = true },
@@ -290,12 +273,6 @@ fun BottomSheetPlayer(
                                 )
                             }
                         }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_horiz),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -391,7 +368,7 @@ fun BottomSheetPlayer(
                             .size(42.dp)
                             .align(Alignment.Center),
                         onClick = {
-                            playerConnection.player.setShuffleModeEnabled(!shuffleModeEnabled)
+                            playerConnection.service.toggleShuffle()
                         }
                     )
                 }
@@ -415,10 +392,7 @@ fun BottomSheetPlayer(
                     modifier = Modifier
                         .size(88.dp)
                         .clip(RoundedCornerShape(playPauseRoundness))
-                        .background(
-                            if (useDarkTheme) Color.White
-                            else MaterialTheme.colorScheme.primary
-                        )
+                        .background(MaterialTheme.colorScheme.primary)
                         .clickable {
                             if (playbackState == STATE_ENDED) {
                                 playerConnection.player.seekTo(0, 0)
@@ -431,10 +405,7 @@ fun BottomSheetPlayer(
                     Image(
                         painter = painterResource(if (playbackState == STATE_ENDED) R.drawable.replay else if (isPlaying) R.drawable.pause else R.drawable.play),
                         contentDescription = null,
-                        colorFilter = ColorFilter.tint(
-                            if (useDarkTheme) Color.Black
-                            else MaterialTheme.colorScheme.onPrimary
-                        ),
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimary),
                         modifier = Modifier
                             .align(Alignment.Center)
                             .size(44.dp)
@@ -472,20 +443,38 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(16.dp))
 
-            // Barra inferior: Cola / Luna / Letras — 3 circulos iguales, centrados, sin texto
+            // Estado del temporizador de apagado: se refleja en el boton de la
+            // luna (color y minutos restantes) para que se vea que quedo activo.
+            val sleepTimer = playerConnection.service.sleepTimer
+            val sleepTimerActive = sleepTimer.triggerTime != -1L || sleepTimer.pauseWhenSongEnd
+            var sleepTimerLeft by remember { mutableLongStateOf(0L) }
+            LaunchedEffect(sleepTimerActive, sleepTimer.triggerTime, sleepTimer.pauseWhenSongEnd) {
+                while (isActive) {
+                    sleepTimerLeft = if (sleepTimer.pauseWhenSongEnd) {
+                        (playerConnection.player.duration - playerConnection.player.currentPosition).coerceAtLeast(0L)
+                    } else {
+                        (sleepTimer.triggerTime - System.currentTimeMillis()).coerceAtLeast(0L)
+                    }
+                    delay(1000L)
+                }
+            }
+
+            // Barra inferior: Cola / Luna / Letras (pildoras con texto, como la referencia)
             Row(
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
             ) {
                 // Cola
-                Box(
-                    contentAlignment = Alignment.Center,
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
+                        .weight(1f)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(26.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable { queueSheetState.expandSoft() }
                 ) {
@@ -493,33 +482,65 @@ fun BottomSheetPlayer(
                         painter = painterResource(R.drawable.queue_music),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.queue),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
                     )
                 }
 
-                // Temporizador de apagado (luna)
+                // Temporizador de apagado (luna): con temporizador activo el
+                // boton cambia de color y muestra los minutos que quedan.
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .size(52.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .background(
+                            if (sleepTimerActive) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            }
+                        )
                         .clickable { showSleepTimerDialog = true }
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.bedtime),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    if (sleepTimerActive && !sleepTimer.pauseWhenSongEnd) {
+                        // Minuto restante redondeado hacia arriba: "29m" en
+                        // cuanto queda 28:01, asi el numero nunca miente.
+                        Text(
+                            text = "${((sleepTimerLeft + 59_999L) / 60_000L).coerceAtLeast(1L)}m",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            maxLines = 1,
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.bedtime),
+                            contentDescription = stringResource(R.string.sleep_timer),
+                            tint = if (sleepTimerActive) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
 
                 // Letras
-                Box(
-                    contentAlignment = Alignment.Center,
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
+                        .weight(1f)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(26.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable { showLyrics = !showLyrics }
                 ) {
@@ -527,7 +548,14 @@ fun BottomSheetPlayer(
                         painter = painterResource(R.drawable.lyrics),
                         contentDescription = null,
                         tint = if (showLyrics) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.lyrics),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (showLyrics) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
                     )
                 }
             }
@@ -545,7 +573,7 @@ fun BottomSheetPlayer(
                     ) {
                         Thumbnail(
                             sliderPositionProvider = { sliderPosition },
-                            overlay = coverOverlay,
+                            overlay = positionOverlay,
                             onTap = { showArtworkViewer = true },
                             modifier = Modifier
                                 .aspectRatio(1f)
@@ -560,6 +588,10 @@ fun BottomSheetPlayer(
                             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top))
                     ) {
                         Spacer(Modifier.weight(1f))
+
+                        actionsRow()
+
+                        Spacer(Modifier.height(16.dp))
 
                         mediaMetadata?.let {
                             controlsContent(it)
@@ -576,51 +608,91 @@ fun BottomSheetPlayer(
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top + WindowInsetsSides.Bottom))
                 ) {
-                    // Header: Now Playing (bold) + cancion ACTUAL (cambia al
-                    // cambiar de tema) + artista
+                    // Header: solo "Now Playing". El nombre de la cola/mix iba
+                    // aqui abajo, pero se quedaba desactualizado respecto a la
+                    // cancion sonando (y el titulo ya aparece sobre los
+                    // controles), asi que sobraba.
                     Text(
                         text = stringResource(R.string.now_playing),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 16.dp)
                     )
-                    Text(
-                        text = mediaMetadata?.title.orEmpty(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Normal,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                    Text(
-                        text = mediaMetadata?.artists?.joinToString { it.name }.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
 
-                    // Tarjeta compacta (85% del ancho), arriba
-                    Thumbnail(
-                        sliderPositionProvider = { sliderPosition },
-                        overlay = coverOverlay,
-                        onTap = { showArtworkViewer = true },
+                    // Bloque flexible: portada + titulo. Se mide DESPUES de que
+                    // los controles, la barra Cola/Luna/Letras y el resto de
+                    // hijos sin weight ya ocuparon su altura, asi que la portada
+                    // encoge en pantallas cortas (o con letra grande) en vez de
+                    // empujar esa barra fuera de la pantalla y dejarla cortada.
+                    Box(
+                        contentAlignment = Alignment.TopCenter,
                         modifier = Modifier
-                            .fillMaxWidth(0.85f)
-                            .aspectRatio(1f)
-                            .nestedScroll(state.preUpPostDownNestedScrollConnection)
-                    )
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            // Portada: 85% del ancho y cuadrada, pero el lado lo
+                            // decide el propio Thumbnail con la altura que le
+                            // queda libre (ver artworkSize alli). El weight la
+                            // mide despues del titulo, asi que en pantallas
+                            // bajas encoge en vez de desbordarse.
+                            Thumbnail(
+                                sliderPositionProvider = { sliderPosition },
+                                overlay = positionOverlay,
+                                onTap = { showArtworkViewer = true },
+                                // El Column ya aplica el inset superior.
+                                applyStatusBarPadding = false,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.85f)
+                                    .weight(1f, fill = false)
+                                    .nestedScroll(state.preUpPostDownNestedScrollConnection)
+                            )
 
-                    // El hueco flexible empuja los controles hacia abajo:
-                    // asi el reproductor llena toda la pantalla
-                    Spacer(Modifier.weight(1f))
+                            Spacer(Modifier.height(14.dp))
+
+                            // Titulo + artista (izquierda) y acciones (derecha)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.Start,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = mediaMetadata?.title.orEmpty(),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = mediaMetadata?.artists?.joinToString { it.name }.orEmpty(),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+
+                                Spacer(Modifier.width(12.dp))
+
+                                actionsRow()
+                            }
+
+                            // Respiro minimo: el titulo nunca queda pegado a los
+                            // controles cuando la portada encoge al minimo.
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
 
                     mediaMetadata?.let {
                         controlsContent(it)
@@ -732,8 +804,7 @@ private fun ArtworkViewer(
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.14f))
                     .clickable(onClick = onShare)
-            ) {
-                Icon(
+            ) {                Icon(
                     painter = painterResource(R.drawable.share),
                     contentDescription = null,
                     tint = Color.White,
@@ -741,5 +812,31 @@ private fun ArtworkViewer(
                 )
             }
         }
+    }
+}
+
+/**
+ * Boton circular de accion rapida del reproductor (radio, like, menu).
+ */
+@Composable
+private fun PlayerActionButton(
+    @DrawableRes icon: Int,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: () -> Unit,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = onClick)
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }

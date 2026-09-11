@@ -7,6 +7,7 @@ import com.rootleo.velqi.innertube.models.MusicResponsiveListItemRenderer
 import com.rootleo.velqi.innertube.models.MusicTwoRowItemRenderer
 import com.rootleo.velqi.innertube.models.PlaylistItem
 import com.rootleo.velqi.innertube.models.SongItem
+import com.rootleo.velqi.innertube.models.WatchEndpoint
 import com.rootleo.velqi.innertube.models.YTItem
 import com.rootleo.velqi.innertube.models.oddElements
 import com.rootleo.velqi.innertube.models.splitBySeparator
@@ -89,16 +90,26 @@ data class ArtistItemsPage(
                     },
                     songCountText = renderer.subtitle?.runs?.getOrNull(4)?.text,
                     thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
+                    // Velqi: playEndpoint/shuffleEndpoint/radioEndpoint son opcionales.
+                    // Las playlists privadas de la cuenta no siempre traen radio, y
+                    // exigirlos con ?: return null descartaba TODAS las playlists
+                    // (importacion desde YT Music mostraba "no se pudieron cargar").
+                    // La importacion solo usa id/title/thumbnail.
                     playEndpoint = renderer.thumbnailOverlay
                         ?.musicItemThumbnailOverlayRenderer?.content
                         ?.musicPlayButtonRenderer?.playNavigationEndpoint
-                        ?.watchPlaylistEndpoint ?: return null,
+                        ?.watchPlaylistEndpoint,
                     shuffleEndpoint = renderer.menu?.menuRenderer?.items?.find {
                         it.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE"
-                    }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null,
-                    radioEndpoint = renderer.menu.menuRenderer.items.find {
+                    }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
+                        ?: renderer.thumbnailOverlay
+                            ?.musicItemThumbnailOverlayRenderer?.content
+                            ?.musicPlayButtonRenderer?.playNavigationEndpoint
+                            ?.watchPlaylistEndpoint
+                        ?: WatchEndpoint(playlistId = renderer.navigationEndpoint.browseEndpoint?.browseId?.removePrefix("VL")),
+                    radioEndpoint = renderer.menu?.menuRenderer?.items?.find {
                         it.menuNavigationItemRenderer?.icon?.iconType == "MIX"
-                    }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null
+                    }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint
                 )
                 else -> null
             }

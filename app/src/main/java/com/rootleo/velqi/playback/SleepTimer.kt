@@ -13,7 +13,10 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
 
 class SleepTimer(
-    private val scope: CoroutineScope,
+    // El scope se pide al armar cada temporizador (y no se guarda): el servicio
+    // puede recrear el suyo, y el job tiene que correr siempre en el scope vivo
+    // o el temporizador se quedaba sin disparar nunca.
+    private val scope: () -> CoroutineScope,
     val player: Player,
 ) : Player.Listener {
     private var sleepTimerJob: Job? = null
@@ -24,14 +27,18 @@ class SleepTimer(
     val isActive: Boolean
         get() = triggerTime != -1L || pauseWhenSongEnd
 
+    /**
+     * @param minute minutos hasta pausar, o -1 para pausar al terminar la cancion.
+     */
     fun start(minute: Int) {
-        sleepTimerJob?.cancel()
-        sleepTimerJob = null
+        // Un solo modo a la vez: antes se podian quedar los dos activos (y un
+        // triggerTime viejo seguia contando despues de elegir "final de cancion").
+        clear()
         if (minute == -1) {
             pauseWhenSongEnd = true
         } else {
             triggerTime = System.currentTimeMillis() + minute.minutes.inWholeMilliseconds
-            sleepTimerJob = scope.launch {
+            sleepTimerJob = scope().launch {
                 delay(minute.minutes)
                 player.pause()
                 triggerTime = -1L
