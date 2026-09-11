@@ -376,7 +376,7 @@
     <string name="restore_failed">Failed to restore backup</string>
 
     <string name="discord_integration">Discord Integration</string>
-    <string name="discord_information">Velqi Luna uses the VelqiRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\nVelqi Luna will only extract your token, and everything else is stored locally.</string>
+    <string name="discord_information">OpenYTMusic uses the OpenYTMusic library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\nOpenYTMusic will only extract your token, and everything else is stored locally.</string>
     <string name="dismiss">Dismiss</string>
     <string name="options">Options</string>
     <string name="preview">Preview</string>
@@ -392,12 +392,12 @@
     <string name="join_discord">Contact me on Discord</string>
     <string name="website">Website</string>
     <string name="app_version">App version</string>
-    <string name="revived_by">Revived by Diego Leo · Velqi</string>
-    <string name="what_is_velqi_luna">What is Velqi Luna?</string>
+    <string name="revived_by">Revived by Leo</string>
+    <string name="what_is_openytmusic">What is OpenYTMusic?</string>
     <string name="revived_description">Luna is an official YouTube Music client powered by a private API. All content belongs to its creators and is streamed as-is. As a single-developer project, errors may occur without prior notice; if so, please wait for an update. — Leo</string>
 
     <string name="update_dialog_title">New version available!</string>
-    <string name="update_dialog_message">Velqi Luna %1$s is now available. Download it for free.</string>
+    <string name="update_dialog_message">OpenYTMusic %1$s is now available. Download it for free.</string>
     <string name="update_download">Download</string>
     <string name="update_later">Later</string>
     <string name="new_version_available">New version available</string>

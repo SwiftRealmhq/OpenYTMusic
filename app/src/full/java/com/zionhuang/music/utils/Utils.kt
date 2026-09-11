@@ -1,4 +1,4 @@
-package com.rootleo.velqi.utils
+package com.openytmusic.app.utils
 
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase

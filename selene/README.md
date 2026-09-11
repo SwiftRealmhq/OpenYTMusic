@@ -14,7 +14,7 @@ de YouTube y parseamos las respuestas. Solo infraestructura base: Ktor + kotlinx
 selene/
 ├── build.gradle.kts
 ├── README.md
-└── src/main/java/com/rootleo/velqi/selene/
+└── src/main/java/com/openytmusic/app/selene/
     ├── Selene.kt              ← Punto de entrada único (todo devuelve Result<T>)
     ├── cli/                   ← 🖥️ CLI de terminal (selene download, search, player...)
     ├── model/                 ← Modelos JSON compartidos + helpers de parseo

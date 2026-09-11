@@ -18,15 +18,15 @@ if (isFullBuild && System.getenv("PULL_REQUEST") == null) {
 }
 
 android {
-    namespace = "com.rootleo.velqi"
+    namespace = "com.openytmusic.app"
     compileSdk = 35
     buildToolsVersion = "35.0.0"
     defaultConfig {
-        applicationId = "com.rootleo.velqi"
+        applicationId = "com.openytmusic.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 29
-        versionName = "0.3.0"
+        versionCode = 31
+        versionName = "0.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {

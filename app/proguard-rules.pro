@@ -76,6 +76,6 @@
 -dontwarn com.huaban.analysis.jieba.JiebaSegmenter
 
 # Keep Data data classes
--keep class com.rootleo.velqi.rpc.remote.** { <fields>; }
+-keep class com.openytmusic.app.rpc.remote.** { <fields>; }
 # Keep Gateway data classes
--keep class com.rootleo.velqi.rpc.gateway.entities.** { <fields>; }
+-keep class com.openytmusic.app.rpc.gateway.entities.** { <fields>; }

@@ -301,7 +301,7 @@
     <string name="restore_failed">فشل في استعادة النسخة الاحتياطية</string>
     <string name="options">خيارات</string>
     <string name="preview">معاينة</string>
-    <string name="discord_information">Velqi Luna يستخدم مكتبة VelqiRPC لتعيين حالة حساب Discord الخاص بك. هذا يتضمن استخدام اتصال Discord Gateway، والذي قد يعتبر انتهاكًا لشروط خدمة Discord. مع ذلك، لا توجد حالات معروفة لتعطيل حسابات المستخدمين لهذا السبب. استخدم على مسؤوليتك الخاصة. \n \nسيقوم Velqi Luna فقط باستخراج رمز الوصول الخاص بك، وسيتم تخزين كل شيء آخر محليًا.</string>
+    <string name="discord_information">OpenYTMusic يستخدم مكتبة OpenYTMusic لتعيين حالة حساب Discord الخاص بك. هذا يتضمن استخدام اتصال Discord Gateway، والذي قد يعتبر انتهاكًا لشروط خدمة Discord. مع ذلك، لا توجد حالات معروفة لتعطيل حسابات المستخدمين لهذا السبب. استخدم على مسؤوليتك الخاصة. \n \nسيقوم OpenYTMusic فقط باستخراج رمز الوصول الخاص بك، وسيتم تخزين كل شيء آخر محليًا.</string>
     <string name="dismiss">صرف</string>
     <string name="enable_discord_rpc">فعل Rich Presence</string>
     <string name="new_version_available">نسخة جديدة متوفرة</string>

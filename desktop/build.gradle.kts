@@ -29,7 +29,7 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "com.rootleo.velqi.desktop.MainKt"
+        mainClass = "com.openytmusic.app.desktop.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb)

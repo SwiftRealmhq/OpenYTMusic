@@ -10,7 +10,7 @@ kotlin {
 }
 
 application {
-    mainClass.set("com.rootleo.velqi.selene.cli.SeleneCliKt")
+    mainClass.set("com.openytmusic.app.selene.cli.SeleneCliKt")
 }
 
 dependencies {

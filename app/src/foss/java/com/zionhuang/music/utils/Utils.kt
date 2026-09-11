@@ -1,6 +1,6 @@
-package com.rootleo.velqi.utils
+package com.openytmusic.app.utils
 
-import com.rootleo.velqi.MainActivity
+import com.openytmusic.app.MainActivity
 import java.lang.Exception
 
 fun reportException(throwable: Throwable) {

@@ -319,7 +319,7 @@
     <string name="backup_create_failed">No se ha podido crear la copia de seguridad</string>
     <string name="restore_failed">Error al restaurar la copia de seguridad</string>
     <string name="discord_integration">Integración con Discord</string>
-    <string name="discord_information">Velqi Luna utiliza la biblioteca VelqiRPC para establecer el estado de su cuenta de Discord. Esto implica el uso de la conexión Discord Gateway, lo que podría considerarse una violación de las condiciones del servicio de Discord. Sin embargo, no se conocen casos de cuentas de usuario suspendidas por este motivo. Úselo bajo su propio riesgo.\n\nVelqi Luna solo extraerá su ficha; todo lo demás se almacena localmente.</string>
+    <string name="discord_information">OpenYTMusic utiliza la biblioteca OpenYTMusic para establecer el estado de su cuenta de Discord. Esto implica el uso de la conexión Discord Gateway, lo que podría considerarse una violación de las condiciones del servicio de Discord. Sin embargo, no se conocen casos de cuentas de usuario suspendidas por este motivo. Úselo bajo su propio riesgo.\n\nOpenYTMusic solo extraerá su ficha; todo lo demás se almacena localmente.</string>
     <string name="dismiss">Descartar</string>
     <string name="options">Opciones</string>
     <string name="preview">Vista previa</string>
@@ -336,11 +336,11 @@
     <string name="join_discord">Contáctame por Discord</string>
     <string name="website">Sitio web</string>
     <string name="app_version">Versión de la app</string>
-    <string name="revived_by">Revivido por Diego Leo · Velqi</string>
-    <string name="what_is_velqi_luna">¿Qué es Velqi Luna?</string>
+    <string name="revived_by">Revivido por Leo</string>
+    <string name="what_is_openytmusic">¿Qué es OpenYTMusic?</string>
     <string name="revived_description">Luna es un cliente oficial de YouTube Music impulsado por una API privada. Todo el contenido pertenece a sus creadores y se reproduce tal cual. Al ser un proyecto mantenido por una sola persona, pueden ocurrir errores sin previo aviso; de ser así, espera a una actualización. — Leo</string>
     <string name="update_dialog_title">¡Nueva versión disponible!</string>
-    <string name="update_dialog_message">Velqi Luna %1$s ya está disponible. Descárgala gratis.</string>
+    <string name="update_dialog_message">OpenYTMusic %1$s ya está disponible. Descárgala gratis.</string>
     <string name="update_download">Descargar</string>
     <string name="update_later">Más tarde</string>
     <string name="new_version_available">Nueva versión disponible</string>

@@ -1,4 +1,4 @@
-package com.rootleo.velqi.utils
+package com.openytmusic.app.utils
 
 import android.util.LruCache
 import com.github.houbb.opencc4j.util.ZhConverterUtil
@@ -9,8 +9,8 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
-import com.rootleo.velqi.db.entities.LyricsEntity
-import com.rootleo.velqi.lyrics.LyricsUtils
+import com.openytmusic.app.db.entities.LyricsEntity
+import com.openytmusic.app.lyrics.LyricsUtils
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
 

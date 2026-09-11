@@ -3,7 +3,7 @@
 > 🎉 **Felicidades.** Si estás leyendo esto es porque eres un **contribuidor autorizado** de Velqi Luna.
 > Si eres el creador original, ignora este mensaje.
 
-> **v0.3.0** · Repositorio **privado** · Código **cerrado**
+> **v0.4.1** · Repositorio **privado** · Código **cerrado**
 > Autor: **Leo** · Acceso restringido únicamente al creador y contribuidores autorizados.
 
 > ⚠️ **CONFIDENCIAL** — Este repositorio contiene el código fuente completo de Velqi Luna. El acceso está
@@ -39,9 +39,9 @@ velqi/
 └── desktop/                  # Variante de escritorio (experimental)
 ```
 
-El módulo `app` depende de los módulos de extracción a través de `com.rootleo.velqi.innertube`
-y expone la lógica de negocio vía ViewModels (`com.rootleo.velqi.viewmodels`). La capa de
-reproducción vive en `com.rootleo.velqi.playback` (servicio de media, colas, radios).
+El módulo `app` depende de los módulos de extracción a través de `com.openytmusic.app.innertube`
+y expone la lógica de negocio vía ViewModels (`com.openytmusic.app.viewmodels`). La capa de
+reproducción vive en `com.openytmusic.app.playback` (servicio de media, colas, radios).
 
 ## Requisitos de build
 
@@ -73,7 +73,7 @@ Salidas:
 
 Velqi Luna no depende de servicios de terceros para el contenido: se comunica directamente con
 el **cliente InnerTube** de YouTube Music — la misma API interna que usa la aplicación oficial.
-Toda la implementación vive en el módulo `innertube` (`com.rootleo.velqi.innertube`).
+Toda la implementación vive en el módulo `innertube` (`com.openytmusic.app.innertube`).
 
 Endpoints principales expuestos:
 
@@ -123,7 +123,7 @@ La estrategia de testing es conservadora: los cambios deben validarse en disposi
 
 ## Estado
 
-- **Versión**: 0.3.0 (release universal, firmada)
+- **Versión**: 0.4.1 (release universal, firmada)
 - **Visibilidad**: privado — no público, no forkable, sin mirrors
 - **Propósito del repo**: copia de seguridad en la nube y colaboración cerrada
 - **Licencia**: código cerrado — todos los derechos reservados por Leo
