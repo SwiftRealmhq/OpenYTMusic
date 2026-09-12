@@ -322,6 +322,13 @@
     <string name="login_benefits_title">Sign in to YouTube Music</string>
     <string name="login_benefits_desc">Import your playlists and liked songs, and avoid YouTube\'s verification blocks when playing.</string>
 
+    <!-- Aviso periodico para quien no ha capturado sesion -->
+    <string name="signed_out_notice_title">Everything is working great</string>
+    <string name="signed_out_notice_desc">OpenYTMusic works perfectly without an account. With your YouTube Music account it gets even better:</string>
+    <string name="signed_out_notice_benefit_1">Your playlists and liked songs stay in sync</string>
+    <string name="signed_out_notice_benefit_2">YouTube\'s verification blocks stop bothering you</string>
+    <string name="signed_out_notice_benefit_3">Your recommendations and history, just like the original app</string>
+
     <string name="content_language">Default content language</string>
     <string name="content_country">Default content country</string>
     <string name="system_default">System default</string>

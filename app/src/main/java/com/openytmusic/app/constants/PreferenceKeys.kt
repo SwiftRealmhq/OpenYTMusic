@@ -168,6 +168,14 @@ val AccountChannelHandleKey = stringPreferencesKey("accountChannelHandle")
  */
 val BotWallDetectedKey = booleanPreferencesKey("botWallDetected")
 
+/**
+ * Marca de tiempo (epoch millis) del ultimo aviso "todo bien, inicia sesion" que se le mostro al
+ * usuario que NO ha capturado sesion. Vive en preferencias para que el intervalo de
+ * [com.openytmusic.app.ui.component.SignedOutNotice] sobreviva al cierre de la app: asi el aviso
+ * no se repite en cada arranque, sino cada X horas de verdad.
+ */
+val SignedOutNoticeShownAtKey = longPreferencesKey("signedOutNoticeShownAt")
+
 val LanguageCodeToName = mapOf(
     "af" to "Afrikaans",
     "az" to "Azərbaycan",

@@ -23,6 +23,7 @@ import androidx.media3.common.Player.EVENT_TIMELINE_CHANGED
 import androidx.media3.common.Player.REPEAT_MODE_ALL
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.REPEAT_MODE_ONE
+import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_IDLE
 import androidx.media3.common.Timeline
 import androidx.media3.common.audio.SonicAudioProcessor
@@ -488,6 +489,11 @@ class MusicService : MediaLibraryService(),
         }
         currentQueue = queue
         queueTitle = null
+        // Velqi: toda lista nueva entra en bucle (primera -> ... -> ultima -> primera). El modo
+        // "sin repeticion" se GUARDA en preferencias, asi que un toque al boton de repeticion
+        // (el de la app o el de la notificacion/lock screen) dejaba la lista muerta en la ultima
+        // cancion para siempre, incluso despues de reiniciar. Se reafirma aqui, en cada cola.
+        player.repeatMode = REPEAT_MODE_ALL
         // Velqi: al iniciar una cola nueva (cancion/album/playlist) la velocidad y el
         // tono vuelven a 1x/0. Asi un tempo previo nunca deja la musica en x2 sin avisar.
         player.playbackParameters = PlaybackParameters.DEFAULT
@@ -646,6 +652,16 @@ class MusicService : MediaLibraryService(),
         if (playbackState == STATE_IDLE) {
             currentQueue = EmptyQueue
             queueTitle = null
+        }
+        // Red de seguridad del bucle: si la lista llega al final con la repeticion apagada (un
+        // toque al boton del sistema a mitad de lista, o un valor viejo guardado), volvemos a la
+        // primera cancion en vez de dejar la musica muerta en la ultima. Detener la reproduccion
+        // es otra cosa: apagar el player deja STATE_IDLE, no STATE_ENDED, asi que no pasa por aqui.
+        if (playbackState == STATE_ENDED && player.mediaItemCount > 0) {
+            player.repeatMode = REPEAT_MODE_ALL
+            player.seekTo(0, 0)
+            player.prepare()
+            player.playWhenReady = true
         }
     }
 

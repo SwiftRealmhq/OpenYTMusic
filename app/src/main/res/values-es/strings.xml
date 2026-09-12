@@ -369,4 +369,11 @@
     <!-- Beneficios de iniciar sesión, para la sección de YouTube Music en Ajustes -->
     <string name="login_benefits_title">Inicia sesión en YouTube Music</string>
     <string name="login_benefits_desc">Importa tus playlists y Me gusta, y evita los bloqueos de verificación de YouTube al reproducir.</string>
+
+    <!-- Aviso periódico para quien no ha capturado sesión -->
+    <string name="signed_out_notice_title">Todo funciona de maravilla</string>
+    <string name="signed_out_notice_desc">OpenYTMusic funciona perfectamente sin cuenta. Con tu cuenta de YouTube Music se lleva mucho mejor:</string>
+    <string name="signed_out_notice_benefit_1">Tus playlists y tus Me gusta se mantienen sincronizados</string>
+    <string name="signed_out_notice_benefit_2">Los bloqueos de verificación de YouTube dejan de molestarte</string>
+    <string name="signed_out_notice_benefit_3">Tus recomendaciones e historial, como en la app original</string>
 </resources>

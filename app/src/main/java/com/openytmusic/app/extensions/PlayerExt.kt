@@ -17,11 +17,19 @@ fun Player.togglePlayPause() {
     playWhenReady = !playWhenReady
 }
 
+/**
+ * Alterna entre "repetir la lista" y "repetir la cancion".
+ *
+ * Ya no existe el estado "sin repeticion": en esta app cualquier lista gira (primera -> ultima ->
+ * primera), asi que ese estado solo servia para matar la cola en la ultima cancion y quedarse
+ * guardado. Un `REPEAT_MODE_OFF` viejo entra al ciclo como bucle de lista. Para parar la musica se
+ * pausa o se detiene, que es otra cosa.
+ */
 fun Player.toggleRepeatMode() {
     repeatMode = when (repeatMode) {
         REPEAT_MODE_OFF -> REPEAT_MODE_ALL
         REPEAT_MODE_ALL -> REPEAT_MODE_ONE
-        REPEAT_MODE_ONE -> REPEAT_MODE_OFF
+        REPEAT_MODE_ONE -> REPEAT_MODE_ALL
         else -> throw IllegalStateException()
     }
 }

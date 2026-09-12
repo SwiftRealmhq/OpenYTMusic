@@ -134,6 +134,7 @@ import com.openytmusic.app.playback.MusicService.MusicBinder
 import com.openytmusic.app.playback.PlayerConnection
 import com.openytmusic.app.playback.queues.ListQueue
 import com.openytmusic.app.ui.component.BotWallNotice
+import com.openytmusic.app.ui.component.SignedOutNotice
 import com.openytmusic.app.ui.component.BottomSheetMenu
 import com.openytmusic.app.ui.component.IconButton
 import com.openytmusic.app.ui.component.LocalMenuState
@@ -1018,6 +1019,14 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .padding(top = 12.dp, start = 12.dp, end = 12.dp)
+                    )
+
+                    // Recordatorio periodico para quien no ha capturado sesion. Se apaga solo
+                    // cuando hay sesion (lo decide el propio componente) y mientras el usuario
+                    // esta en la pantalla de login, donde ya se lo estan explicando.
+                    SignedOutNotice(
+                        enabled = navBackStackEntry?.destination?.route != "login",
+                        onLogin = { navController.navigate("login") }
                     )
 
                     // Absorbe el BACK fantasma que el IME dispara al cerrarse tras
