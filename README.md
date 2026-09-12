@@ -51,7 +51,7 @@ Desarrollado por: Leo
 | Letras | LrcLib + KuGou + YouTube transcript (con fallback en cascada) |
 | RPC | Discord Rich Presence (módulo `discord-rpc`) |
 | Tema | Rojo YouTube Music (`#FF0000`), acento saturado, dark puro |
-| Build | Gradle 8.7 (wrapper) · AGP 8.x · Kotlin 1.9.22 |
+| Build | Gradle 8.7 (wrapper) · AGP 8.6.0 · Kotlin 2.0.10 |
 | minSdk / targetSdk / compileSdk | 24 / 35 / 35 |
 | build-tools | 35.0.0 |
 
@@ -62,7 +62,7 @@ OpenYTMusic/
 ├── app/                      # Módulo principal (UI, navegación, reproductor, servicios)
 ├── innertube/                # Cliente InnerTube: parseo de respuestas de YouTube Music
 ├── zemer-cipher/             # Generación de PoToken (BotGuard en WebView) + firmas de streams
-├── selene/                   # Motor de descargas offline
+├── selene/                   # Extracción alternativa (browse/search/next/streams); aún no la usa `app`
 ├── lrclib/                   # Cliente de LrcLib (letras sincronizadas)
 ├── kugou/                    # Cliente de KuGou (letras)
 ├── discord-rpc/              # Gateway de Discord (Rich Presence)
@@ -84,7 +84,7 @@ reproducción vive en `com.openytmusic.app.playback` (servicio de media, colas, 
 - Letras sincronizadas (LrcLib / KuGou / transcript) y sin sincronizar
 - **PoToken (BotGuard) como rescate automático cuando YouTube responde muro anti-bot**
 - Discord Rich Presence con timestamp tipo Spotify
-- Descargas offline (Selene), colas, radios y mezcla infinita
+- Descargas offline (`ExoDownloadService` + `DownloadUtil` en `app`), colas, radios y mezcla infinita
 - Tema oscuro puro con acento rojo vivo y color dinámico opcional desde la portada
 
 ## Requisitos de build
@@ -95,7 +95,7 @@ reproducción vive en `com.openytmusic.app.playback` (servicio de media, colas, 
 | Android SDK | API 35 | `compileSdk 35` / `targetSdk 35` |
 | build-tools | **35.0.0** | Necesario para `zipalign` y `apksigner` al firmar |
 | Gradle | 8.7 | Wrapper incluido — no hace falta instalarlo |
-| kotlin / ksp | 1.9.22 | Gestionados por el wrapper y `libs.versions.toml` |
+| kotlin / ksp | 2.0.10 / 2.0.10-1.0.24 | Gestionados por el wrapper y `libs.versions.toml` |
 
 Configura el SDK con `ANDROID_HOME` o con un `local.properties` en la raíz:
 
@@ -149,7 +149,13 @@ Salida: `app/build/outputs/apk/foss/debug/app-foss-debug.apk` (~25 MB).
 ./gradlew :app:assembleFossRelease
 ```
 
-Salida: `app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk` (~7,7 MB, **sin firmar**).
+Salida: `app/build/outputs/apk/foss/release/app-foss-release.apk` (~7,7 MB, **firmado** con
+`openytmusic-release.jks`).
+
+Si la keystore **no** está en la raíz, el build continúa y deja el APK sin firmar como
+`app-foss-release-unsigned.apk`; en ese caso hay que firmarlo a mano (ver
+[Firmar el release](#firmar-el-release)).
+
 R8 + recorte de recursos bajan el APK de ~25 MB a ~7,7 MB. En este entorno tarda ~20-60 s en
 caliente; la primera vez (sin caché de Gradle) puede pasar de 5 minutos.
 
@@ -171,8 +177,14 @@ activa automáticamente los plugins de Firebase (`isFullBuild` en `build.gradle.
 
 ## Firmar el release
 
-El build produce un APK **sin firmar**: la keystore vive fuera del control de versiones
-(`openytmusic-release.jks`, en la raíz y en `.gitignore`) y no se comparte.
+`./gradlew :app:assembleFossRelease` **firma el APK automáticamente** cuando la keystore está en
+la raíz: `signingConfigs.release` se asigna a `buildTypes.release.signingConfig` en
+`app/build.gradle.kts`. La keystore vive fuera del control de versiones
+(`openytmusic-release.jks`, en `.gitignore`) y no se comparte.
+
+Si la keystore **no** está presente, el build no falla: sigue adelante y entrega
+`app-foss-release-unsigned.apk` sin firmar. Para ese caso (o para re-firmar a mano) usa el flujo
+`zipalign` + `apksigner`:
 
 **Credenciales** (mismas que usa `signingConfigs.release` en `app/build.gradle.kts`):
 
@@ -183,7 +195,7 @@ El build produce un APK **sin firmar**: la keystore vive fuera del control de ve
 | Contraseña de store | variable `OYM_STORE_PASSWORD` (respaldo: `OpenYTMusic2026`) |
 | Contraseña de clave | variable `OYM_KEY_PASSWORD` (respaldo: `OpenYTMusic2026`) |
 
-Firma manual con `zipalign` + `apksigner` (es el flujo usado para publicar):
+Firma manual de respaldo con `zipalign` + `apksigner`:
 
 ```bash
 BT="$ANDROID_HOME/build-tools/35.0.0"
@@ -259,9 +271,12 @@ Lectura del log de reproducción:
 KernelVelqi: stream itag=18 muxed=true cliente=ANDROID pot=false intento=null url=...
 ```
 
-- `cliente=` → cliente que entregó los streams (`ANDROID`, `IOS`, `WEB_REMIX+pot`, `ANDROID_VR`, `TVHTML5+piped`).
-- `pot=true/false` → si la URL lleva token de atestación (solo cuando ganó el camino web).
-- `intento=` → resultado del intento con PoToken; `null` cuando **no fue necesario** levantarlo.
+- `cliente=` → cliente que entregó los streams (`ANDROID`, `IOS`, `ANDROID+pot`, `WEB_REMIX+pot`,
+  `ANDROID_VR`, `TVHTML5+piped`).
+- `pot=true/false` → si la URL **que se está reproduciendo** lleva token de atestación. En los
+  muxed (`muxed=true`) siempre es `false`: el itag 18 no consulta el `pot`.
+- `intento=` → resultado del intento con PoToken; `null` cuando **no fue necesario** levantarlo, y
+  `sin PoToken (BotGuard frio, calentando o no disponible)` cuando no estaba listo a tiempo.
 
 ## Resolución de streams y anti-bot
 
@@ -272,9 +287,10 @@ La obtención de streams vive en `innertube/YouTube.kt` → `player()`. La estra
 |---|---|---|
 | 1 | `ANDROID` (con cookie de sesión si existe) | Camino normal. En la práctica responde `OK` siempre |
 | 2 | `IOS` | Respaldo del anterior |
-| 3 | `WEB_REMIX` + **PoToken** | Solo si los anteriores devolvieron muro anti-bot (`LOGIN_REQUIRED` / *"not a bot"*). Levanta el WebView **únicamente aquí** |
-| 4 | `ANDROID_VR` | Último recurso móvil |
-| 5 | `TVHTML5` + piped | Fallback histórico para streams muxed |
+| 3 | `ANDROID` + **PoToken** | Solo si los anteriores devolvieron muro anti-bot (`LOGIN_REQUIRED` / *"not a bot"*). Es el cliente que **mejor** entrega streams (muxed itag 18 + adaptativos con rangos completos), así que el rescate no depende del cliente web. El WebView se levanta **únicamente aquí** y **nunca bloquea la reproducción**: si el BotGuard todavía está frío, devuelve `null` y termina de arrancar en segundo plano |
+| 4 | `WEB_REMIX` + **PoToken** | Respaldo del anterior (camino histórico, medido sin sesión) |
+| 5 | `ANDROID_VR` | Último recurso móvil |
+| 6 | `TVHTML5` + piped | Fallback histórico para streams muxed |
 
 Resultados medidos desde una red de datacenter (Waydroid) con y sin sesión:
 
@@ -285,6 +301,8 @@ Resultados medidos desde una red de datacenter (Waydroid) con y sin sesión:
 | `ANDROID_VR` | ❌ `LOGIN_REQUIRED` — *"Sign in to confirm you're not a bot"* |
 | `WEB_REMIX` / `WEB` | ❌ `UNPLAYABLE` — *"Video unavailable"* (desde esa red) |
 | `TVHTML5` | ❌ *"YouTube is no longer supported in this application"* |
+| `ANDROID` + pot | ⏳ ronda nueva: pendiente de medir en dispositivo. El `intento=` del log y la telemetría
+  de muro (ver abajo) dicen si gana a `WEB_REMIX+pot` |
 
 ### Cómo funciona el PoToken
 
@@ -303,14 +321,48 @@ Reglas de diseño ya implementadas (no romper):
    levanta y la reproducción no paga los ~2-5 s de su arranque.
 2. **El `pot=` solo se inyecta cuando la respuesta web es la que se va a reproducir.** Añadirlo
    a URLs de clientes Android no aporta y ensucia el diagnóstico.
-3. **Si falla, no rompe nada:** la cadena sigue con los clientes móviles.
+3. **Si falla, no rompe nada:** la cadena sigue con los clientes móviles, y todo error transitorio
+   del BotGuard se traduce en `null` — nada de ahí puede lanzar hacia el reproductor.
+4. **Un BotGuard frío no bloquea:** el arranque en frío se espera como máximo **3 s**. Si no llega,
+   la cadena sigue sin PoToken y el WebView termina de inicializar en segundo plano para la
+   siguiente canción; el reintento de `/player` (3 s tras un muro) es lo que convierte esa segunda
+   vuelta en música en vez de en un error.
+5. **El `pot=` solo se añade a streams adaptativos:** el muxed (itag 18) sirve el archivo completo
+   con rangos ilimitados y no consulta el token.
+6. **El orden del rescate se mide, no se asume.** Cada intento con PoToken queda en `intento=`
+   (log) y los muros se reportan como *no-fatal* (`BotWallException`, ver abajo), así que la ruta
+   ganadora se decide con datos de campo y no con intuición.
+
+### Qué dispara el muro anti-bot y qué lo mata
+
+El muro (`Sign in to confirm you're not a bot`) no es aleatorio: lo dispara la **reputación de la
+IP** sumada a la **falta de atestación**. En orden de eficacia:
+
+| Palanca | Quién la sufre / quién la resuelve |
+|---|---|
+| **Sesión iniciada** | Es lo que **mata** el muro y es la única solución de fondo. Se captura desde
+  el WebView de login (`Ajustes → YouTube Music`) y es **la misma cookie** que desbloquea tus
+  playlists de YouTube Music: no hay que exportar nada a mano |
+| **PoToken** | Rescate invisible sin cuenta: cubre el caso de quien no quiere iniciar sesión |
+| **IP** | Un usuario normal (casa, datos móviles) **casi nunca** lo topa; los que lo topan son
+  VPN, proxies y redes de datacenter — justo el escenario de un emulador |
+
+Y para no ir a ciegas: cuando el muro aparece, el resolver reporta un **no-fatal** (`reportException`
+→ Crashlytics en el flavor `full`, log en `foss`) con el detalle de qué cliente se usó, si hubo
+rescate y si había sesión. Así la frecuencia y la eficacia se miden en campo en vez de suponerse.
+
+> **Autenticación por familia de cliente:** los clientes móviles (`ANDROID`, `IOS`) se autentican
+> solo con la cookie. La familia **web** (`WEB`, `WEB_REMIX`) exige además
+> `Authorization: SAPISIDHASH <ts>_<sha1("<ts> <SAPISID> https://music.youtube.com")>` — enviar
+> la cookie **sin** esa firma equivale a ir sin sesión, que es exactamente lo que dispara el muro.
+> `/player` ahora firma cuando el cliente es web.
 
 ## Problemas comunes
 
 | Síntoma | Causa y solución |
 |---|---|
 | *"Sign in to confirm you're not a bot"* en el reproductor | Muro anti-bot de YouTube. Abre **Ajustes → YouTube Music** e inicia sesión: con cookies las peticiones van autenticadas y el muro desaparece. También se activa solo el rescate con PoToken. Revisa `cliente=` e `intento=` en `KernelVelqi` para ver qué pasó |
-| La reproducción tarda ~2-5 s en empezar | El WebView del PoToken se está levantando. Solo debería ocurrir tras un muro; si se repite en cada canción, revisa el orden de clientes en `player()` |
+| La reproducción tarda ~2-5 s en empezar | El WebView del PoToken se está levantando. Debería pasar **una sola vez y solo tras un muro anti-bot**: en frío se espera 3 s como máximo y el resto del arranque sigue en segundo plano. Si se repite en cada canción, revisa el orden de clientes en `player()`; si el `visitorData` está vacío (`intento=` en `KernelVelqi`), el PoToken se omite y el muro nunca se resuelve |
 | Error de KSP con rutas de paquetes viejas | Caché de KSP tras mover/renombrar paquetes: `./gradlew clean` y recompilar (el daemon también con `./gradlew --stop`) |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | El APK release está firmado con otra clave que el instalado (o hay debug instalado). `adb uninstall com.openytmusic.app` y reinstalar |
 | El APK release no se instala encima del debug | Son apps distintas por `applicationId` (`.debug`); desinstala el debug si quieres el mismo paquete |
@@ -352,6 +404,8 @@ Reglas de uso:
 ./gradlew :app:compileFossDebugKotlin   # verificación de tipos (rápida)
 ./gradlew :app:lintFossDebug            # linter de Android/Kotlin
 ./gradlew :innertube:test               # tests unitarios del cliente InnerTube
+./gradlew :selene:test                  # tests unitarios de selene (browse/search/next/queue)
+./gradlew :kugou:test                   # tests unitarios del cliente de letras KuGou
 ```
 
 Instalación directa en dispositivo/emulador:

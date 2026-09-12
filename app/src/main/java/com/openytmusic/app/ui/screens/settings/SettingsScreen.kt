@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -149,19 +151,48 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                // Acciones de cuenta: cambiar (login) y cerrar sesion
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    TextButton(onClick = { navController.navigate("login") }) {
-                        Text(
-                            text = if (isLoggedIn) stringResource(R.string.switch_account)
-                            else stringResource(R.string.action_login),
-                            style = MaterialTheme.typography.labelLarge
+                if (!isLoggedIn) {
+                    // El login no es un extra: es la unica solucion de fondo al muro anti-bot y la
+                    // puerta a tus playlists de YouTube Music. Por eso va como accion principal,
+                    // con sus dos beneficios a la vista, en vez de escondido tras un "Acceder".
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        text = stringResource(R.string.login_benefits_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.login_benefits_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { navController.navigate("login") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.person),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
                         )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.bot_wall_login))
                     }
-                    if (isLoggedIn) {
+                } else {
+                    // Acciones de cuenta: cambiar (login) y cerrar sesion
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TextButton(onClick = { navController.navigate("login") }) {
+                            Text(
+                                text = stringResource(R.string.switch_account),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                         TextButton(onClick = {
                             scope.launch {
                                 context.dataStore.edit { settings ->

@@ -79,6 +79,16 @@ android {
             }
         }
     }
+    buildTypes {
+        getByName("release") {
+            // Firma automatica del release cuando la keystore esta presente.
+            // Sin openytmusic-release.jks en la raiz, el APK sale unsigned y se firma a mano.
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning?.storeFile != null) {
+                signingConfig = releaseSigning
+            }
+        }
+    }
     buildFeatures {
         buildConfig = true
         compose = true

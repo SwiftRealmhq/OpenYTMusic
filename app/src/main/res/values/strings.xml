@@ -312,6 +312,16 @@
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
 
+    <!-- Aviso del muro anti-bot de YouTube -->
+    <string name="bot_wall_title">YouTube asked for verification</string>
+    <string name="bot_wall_desc">Sign in with your YouTube Music account and this won\'t happen again. Playback keeps working without it.</string>
+    <string name="bot_wall_dismiss">Not now</string>
+    <string name="bot_wall_login">Sign in</string>
+
+    <!-- Beneficios de iniciar sesion, para la seccion de YouTube Music en Ajustes -->
+    <string name="login_benefits_title">Sign in to YouTube Music</string>
+    <string name="login_benefits_desc">Import your playlists and liked songs, and avoid YouTube\'s verification blocks when playing.</string>
+
     <string name="content_language">Default content language</string>
     <string name="content_country">Default content country</string>
     <string name="system_default">System default</string>

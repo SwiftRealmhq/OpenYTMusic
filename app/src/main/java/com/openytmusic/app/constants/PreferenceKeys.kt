@@ -161,6 +161,13 @@ val AccountNameKey = stringPreferencesKey("accountName")
 val AccountEmailKey = stringPreferencesKey("accountEmail")
 val AccountChannelHandleKey = stringPreferencesKey("accountChannelHandle")
 
+/**
+ * Se enciende cuando YouTube responde con el muro anti-bot (`LOGIN_REQUIRED` / *"not a bot"*).
+ * Vive en preferencias y no en memoria porque la deteccion ocurre en [MusicService], que puede
+ * estar corriendo sin UI: la pantalla que se abra despues debe encontrar el aviso igual.
+ */
+val BotWallDetectedKey = booleanPreferencesKey("botWallDetected")
+
 val LanguageCodeToName = mapOf(
     "af" to "Afrikaans",
     "az" to "Azərbaycan",

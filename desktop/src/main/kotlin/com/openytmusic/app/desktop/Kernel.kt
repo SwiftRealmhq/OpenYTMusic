@@ -29,7 +29,7 @@ object Kernel {
      * los adaptativos piden PO token / 403 en seek.
      */
     suspend fun resolveStreamUrl(videoId: String): String? = withContext(Dispatchers.IO) {
-        val response = YouTube.player(videoId).getOrNull() ?: return@withContext null
+        val response = YouTube.player(videoId).getOrNull()?.response ?: return@withContext null
         if (response.playabilityStatus.status != "OK") {
             println("[kernel] playability != OK: ${response.playabilityStatus.reason}")
         }

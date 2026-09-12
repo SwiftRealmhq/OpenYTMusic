@@ -68,9 +68,10 @@ class DownloadUtil @Inject constructor(
         }
 
         val playedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
-        val playerResponse = runBlocking(Dispatchers.IO) {
+        val playerResult = runBlocking(Dispatchers.IO) {
             YouTube.player(mediaId)
         }.getOrThrow()
+        val playerResponse = playerResult.response
         if (playerResponse.playabilityStatus.status != "OK") {
             throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
         }

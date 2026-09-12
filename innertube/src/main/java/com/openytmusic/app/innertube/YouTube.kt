@@ -59,6 +59,24 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.net.Proxy
 
 /**
+ * Resultado de [YouTube.player].
+ *
+ * [streamingDataPoToken] y [clientUsed] viajan DENTRO del resultado a proposito: antes vivian en
+ * variables globales de `YouTube` y cualquier otra resolucion concurrente (p. ej. `recoverSong`,
+ * que tambien llama a `player()`) las borraba entre el minteo y el uso. El consumidor entonces
+ * armaba la URL sin `pot=` y googlevideo cortaba el stream (~1 MB, 403 al hacer seek).
+ */
+data class PlayerResult(
+    val response: PlayerResponse,
+    /** Cliente que entrego los streams: ANDROID, IOS, WEB_REMIX+pot, ANDROID_VR o TVHTML5+piped. */
+    val clientUsed: String? = null,
+    /** `pot=` ligado al video; solo se inyecta cuando esta respuesta es la que se reproduce. */
+    val streamingDataPoToken: String? = null,
+    /** Diagnostico del intento WEB_REMIX+PoToken; `null` si no fue necesario. */
+    val poTokenAttempt: String? = null,
+)
+
+/**
  * Parse useful data with [InnerTube] sending requests.
  */
 object YouTube {
@@ -590,18 +608,9 @@ object YouTube {
         parsed
     }
 
-    /** Ultimo token de streaming (GVS) minteado; se anade como pot= a las URLs. */
-    var lastStreamingDataPoToken: String? = null
-
-    /** Diagnostico: resultado del ultimo intento WEB_REMIX + poToken. */
-    var lastPoTokenAttempt: String? = null
-
-    /** Diagnostico: cliente que finalmente entrego los streams (para logs). */
-    var lastClientUsed: String? = null
-
     var poTokenProvider: (suspend (videoId: String, visitorData: String?) -> Pair<String, String>?)? = null
 
-    suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerResponse> = runCatching {
+    suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerResult> = runCatching {
         // Estrategia de resolucion (validada contra la API real):
         // 1) Clientes moviles (ANDROID con cookie si hay sesion, luego IOS): son los que
         //    responden OK en la practica. La reproduccion normal no paga ningun costo extra.
@@ -609,28 +618,31 @@ object YouTube {
         //    un PoToken (BotGuard via WebView) y se reintenta con WEB_REMIX + poToken, que es
         //    el camino que pasa el bot-check sin sesion. El WebView se levanta solo aqui.
         // 3) ANDROID_VR, TVHTML5 y piped como ultimos recursos.
-        // El token de streaming es por-video: se limpia al iniciar cada resolucion.
-        lastStreamingDataPoToken = null
-        lastClientUsed = null
+        // El token de streaming viaja en el PlayerResult que se devuelve: no hay estado global
+        // que otra resolucion concurrente pueda borrar entre el minteo y el uso.
+        // Snapshot del visitorData: el PoToken de sesion debe estar ligado EXACTAMENTE al mismo
+        // valor que viaja en el /player request. Leido dos veces, un cambio de visitorData en el
+        // medio (login o refresh) dejaria un token que no valida y el muro anti-bot volveria.
+        val visitorData = this.visitorData
+        var poTokenAttempt: String? = null
         var lastResponse: PlayerResponse? = null
         var lastError: Throwable? = null
         var walled = false
         // Si no hay proveedor de PoToken, el camino web no aporta nada y se salta.
         val hasPoTokenProvider = poTokenProvider != null
 
-        // 1) Clientes moviles: son los que responden OK en la practica y sin costo extra.
-        val mobileClients = buildList {
-            if (cookie != null) add(YouTubeClient.ANDROID)
-            add(YouTubeClient.ANDROID)
-            add(YouTubeClient.IOS)
-        }.distinct()
+        // 1) Clientes moviles: son los que responden OK en la practica y sin costo extra. La cookie
+        //    de sesion viaja en la peticion, asi que con sesion el muro no aparece.
+        val mobileClients = listOf(YouTubeClient.ANDROID, YouTubeClient.IOS)
         for (client in mobileClients) {
             try {
                 val response = innerTube.player(client, videoId, playlistId).body<PlayerResponse>()
                 lastResponse = response
                 if (response.playabilityStatus.status == "OK") {
-                    lastClientUsed = client.clientName
-                    return@runCatching response
+                    return@runCatching PlayerResult(
+                        response = response,
+                        clientUsed = client.clientName,
+                    )
                 }
                 if (
                     response.playabilityStatus.status == "LOGIN_REQUIRED" ||
@@ -643,33 +655,53 @@ object YouTube {
             }
         }
 
-        // 2) Muro anti-bot -> PoToken (BotGuard via WebView) + WEB_REMIX.
+        // 2) Muro anti-bot -> PoToken (BotGuard via WebView).
         //    Solo se paga el costo de levantar el WebView cuando de verdad nos bloquearon.
         if (walled && hasPoTokenProvider) {
             try {
                 val pot = poTokenProvider?.invoke(videoId, visitorData)
                 if (pot != null) {
-                    val webResponse = innerTube.player(
-                        client = YouTubeClient.WEB_REMIX,
-                        videoId = videoId,
-                        playlistId = playlistId,
-                        poToken = pot.first,
-                        visitorData = visitorData,
-                    ).body<PlayerResponse>()
-                    if (webResponse.playabilityStatus.status == "OK") {
-                        // El pot= de la URL va ligado al video: solo se inyecta cuando la
-                        // respuesta web es la que se va a reproducir.
-                        lastStreamingDataPoToken = pot.second
-                        lastPoTokenAttempt = "WEB_REMIX OK con pot"
-                        lastClientUsed = "WEB_REMIX+pot"
-                        return@runCatching webResponse
+                    // Con el token en la mano se prueban dos clientes, en este orden:
+                    //  a) ANDROID + pot — es el que MEJOR entrega streams (muxed itag 18 y
+                    //     adaptativos con rangos completos). Si lo que faltaba era la atestacion,
+                    //     gana aqui y el rescate no depende del cliente web.
+                    //  b) WEB_REMIX + pot — camino historico, medido contra la API real.
+                    // `poTokenAttempt` deja en el log (`intento=`) cual de los dos gano: asi se mide
+                    // cual vale la pena en vez de asumirlo.
+                    for (client in listOf(YouTubeClient.ANDROID, YouTubeClient.WEB_REMIX)) {
+                        val clientLabel = "${client.clientName}+pot"
+                        val response = runCatching {
+                            innerTube.player(
+                                client = client,
+                                videoId = videoId,
+                                playlistId = playlistId,
+                                poToken = pot.first,
+                                visitorData = visitorData,
+                            ).body<PlayerResponse>()
+                        }.getOrElse { t ->
+                            poTokenAttempt = "$clientLabel excepcion: ${t.javaClass.simpleName}: ${t.message}"
+                            null
+                        }
+                        if (response != null && response.playabilityStatus.status == "OK") {
+                            poTokenAttempt = "$clientLabel OK"
+                            // El pot= de la URL va ligado al video: se devuelve junto con ESTA
+                            // respuesta, para que solo se inyecte si es la que se va a reproducir.
+                            return@runCatching PlayerResult(
+                                response = response,
+                                clientUsed = clientLabel,
+                                streamingDataPoToken = pot.second,
+                                poTokenAttempt = poTokenAttempt,
+                            )
+                        }
+                        if (response != null) {
+                            poTokenAttempt = "$clientLabel status=${response.playabilityStatus.status} reason=${response.playabilityStatus.reason}"
+                        }
                     }
-                    lastPoTokenAttempt = "WEB_REMIX status=${webResponse.playabilityStatus.status} reason=${webResponse.playabilityStatus.reason}"
                 } else {
-                    lastPoTokenAttempt = "sin PoToken (WebView no disponible)"
+                    poTokenAttempt = "sin PoToken (BotGuard frio, calentando o no disponible)"
                 }
             } catch (t: Throwable) {
-                lastPoTokenAttempt = "WEB_REMIX excepcion: ${t.javaClass.simpleName}: ${t.message}"
+                poTokenAttempt = "pot excepcion: ${t.javaClass.simpleName}: ${t.message}"
             }
         }
 
@@ -678,8 +710,11 @@ object YouTube {
             val response = innerTube.player(YouTubeClient.ANDROID_VR, videoId, playlistId).body<PlayerResponse>()
             lastResponse = response
             if (response.playabilityStatus.status == "OK") {
-                lastClientUsed = "ANDROID_VR"
-                return@runCatching response
+                return@runCatching PlayerResult(
+                    response = response,
+                    clientUsed = "ANDROID_VR",
+                    poTokenAttempt = poTokenAttempt,
+                )
             }
         } catch (e: Throwable) {
             lastError = e
@@ -692,22 +727,28 @@ object YouTube {
         }
         if (safePlayerResponse == null || safePlayerResponse.playabilityStatus.status != "OK") {
             if (lastResponse != null) {
-                return@runCatching lastResponse
+                return@runCatching PlayerResult(
+                    response = lastResponse,
+                    poTokenAttempt = poTokenAttempt,
+                )
             }
             throw lastError ?: RuntimeException("No streams available")
         }
         val audioStreams = innerTube.pipedStreams(videoId).body<PipedResponse>().audioStreams
-        lastClientUsed = "TVHTML5+piped"
-        safePlayerResponse.copy(
-            streamingData = safePlayerResponse.streamingData?.copy(
-                adaptiveFormats = safePlayerResponse.streamingData.adaptiveFormats.mapNotNull { adaptiveFormat ->
-                    audioStreams.find { it.bitrate == adaptiveFormat.bitrate }?.let {
-                        adaptiveFormat.copy(
-                            url = it.url
-                        )
+        return@runCatching PlayerResult(
+            response = safePlayerResponse.copy(
+                streamingData = safePlayerResponse.streamingData?.copy(
+                    adaptiveFormats = safePlayerResponse.streamingData.adaptiveFormats.mapNotNull { adaptiveFormat ->
+                        audioStreams.find { it.bitrate == adaptiveFormat.bitrate }?.let {
+                            adaptiveFormat.copy(
+                                url = it.url
+                            )
+                        }
                     }
-                }
-            )
+                )
+            ),
+            clientUsed = "TVHTML5+piped",
+            poTokenAttempt = poTokenAttempt,
         )
     }
 

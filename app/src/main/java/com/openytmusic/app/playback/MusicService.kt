@@ -52,6 +52,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
+import com.openytmusic.app.innertube.PlayerResult
 import com.openytmusic.app.innertube.YouTube
 import com.openytmusic.app.innertube.models.SongItem
 import com.openytmusic.app.innertube.models.WatchEndpoint
@@ -63,6 +64,7 @@ import com.openytmusic.app.constants.AudioQuality
 import com.openytmusic.app.constants.AudioQualityKey
 import com.openytmusic.app.constants.AutoLoadMoreKey
 import com.openytmusic.app.constants.AutoSkipNextOnErrorKey
+import com.openytmusic.app.constants.BotWallDetectedKey
 import com.openytmusic.app.constants.DiscordTokenKey
 import com.openytmusic.app.constants.EnableDiscordRPCKey
 import com.openytmusic.app.constants.HideExplicitKey
@@ -106,6 +108,7 @@ import com.openytmusic.app.utils.enumPreference
 import com.openytmusic.app.utils.get
 import com.openytmusic.app.utils.isInternetAvailable
 import com.openytmusic.app.utils.reportException
+import java.util.concurrent.atomic.AtomicBoolean
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -451,7 +454,7 @@ class MusicService : MediaLibraryService(),
         } ?: return
         val duration = song?.song?.duration?.takeIf { it != -1 }
             ?: mediaMetadata.duration.takeIf { it != -1 }
-            ?: (playerResponse ?: YouTube.player(mediaId).getOrNull())?.videoDetails?.lengthSeconds?.toInt()
+            ?: (playerResponse ?: YouTube.player(mediaId).getOrNull()?.response)?.videoDetails?.lengthSeconds?.toInt()
             ?: -1
         database.query {
             if (song == null) insert(mediaMetadata.copy(duration = duration))
@@ -752,24 +755,8 @@ class MusicService : MediaLibraryService(),
             // Check whether format exists so that users from older version can view format details
             // There may be inconsistent between the downloaded file and the displayed info if user change audio quality frequently
             val playedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
-            val playerResponse = runBlocking(Dispatchers.IO) {
-                YouTube.player(mediaId)
-            }.getOrElse { throwable ->
-                when (throwable) {
-                    is ConnectException, is UnknownHostException -> {
-                        throw PlaybackException(getString(R.string.error_no_internet), throwable, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
-                    }
-
-                    is SocketTimeoutException -> {
-                        throw PlaybackException(getString(R.string.error_timeout), throwable, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT)
-                    }
-
-                    else -> throw PlaybackException(getString(R.string.error_unknown), throwable, PlaybackException.ERROR_CODE_REMOTE_ERROR)
-                }
-            }
-            if (playerResponse.playabilityStatus.status != "OK") {
-                throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
-            }
+            val playerResult = runBlocking(Dispatchers.IO) { resolvePlayerResponse(mediaId) }
+            val playerResponse = playerResult.response
 
             val adaptiveFormat =
                 if (playedFormat != null) {
@@ -814,16 +801,121 @@ class MusicService : MediaLibraryService(),
             val muxedFormat = playerResponse.streamingData?.formats?.firstOrNull { it.url != null }
             val useMuxed = format.isAudio && muxedFormat != null
             var streamUrl = if (useMuxed) muxedFormat!!.url!! else format.url!!
-            // PoToken de streaming: sin el, googlevideo solo sirve ~1MB (403 en seek).
-            YouTube.lastStreamingDataPoToken?.let { pot ->
-                if ("pot=" !in streamUrl) {
-                    streamUrl += (if ('?' in streamUrl) '&' else '?') + "pot=" + pot
+            // PoToken de streaming: sin el, un adaptativo con spc solo sirve ~1MB y da 403 al
+            // hacer seek. Se toma del propio PlayerResult, asi pertenece a ESTA resolucion y no lo
+            // puede pisar otra concurrente (recoverSong, prefetch, descarga).
+            //
+            // Solo se inyecta cuando se reproduce un ADAPTATIVO: el muxed (itag 18) sirve el
+            // archivo completo con rangos ilimitados y no consulta el pot, asi que agregarlo ahi
+            // no aporta nada y ensucia el diagnostico del log.
+            val playingMuxedStream = !format.isAudio || useMuxed
+            if (!playingMuxedStream) {
+                playerResult.streamingDataPoToken?.let { pot ->
+                    if ("pot=" !in streamUrl) {
+                        streamUrl += (if ('?' in streamUrl) '&' else '?') + "pot=" + pot
+                    }
                 }
             }
-            android.util.Log.d("KernelVelqi", "stream itag=" + (if (useMuxed) muxedFormat!!.itag else format.itag) + " muxed=" + useMuxed + " cliente=" + YouTube.lastClientUsed + " pot=" + (YouTube.lastStreamingDataPoToken != null) + " intento=" + YouTube.lastPoTokenAttempt + " url=" + streamUrl.take(300))
+            android.util.Log.d("KernelVelqi", "stream itag=" + (if (useMuxed) muxedFormat!!.itag else format.itag) + " muxed=" + useMuxed + " cliente=" + playerResult.clientUsed + " pot=" + (!playingMuxedStream && playerResult.streamingDataPoToken != null) + " intento=" + playerResult.poTokenAttempt + " url=" + streamUrl.take(300))
             songUrlCache[mediaId] = streamUrl to System.currentTimeMillis() + playerResponse.streamingData!!.expiresInSeconds * 1000L
             dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
         }
+    }
+
+    /**
+     * Resuelve `/player` con reintentos acotados.
+     *
+     * La razon de ser: cuando YouTube tira el muro anti-bot, la primera resolucion suele perder
+     * mientras el BotGuard todavia arranca (ver `PoTokenGenerator`: en frio devuelve `null` a
+     * proposito para no bloquear el reproductor). Un segundo intento unos segundos despues suele
+     * encontrar el token listo y ganar con WEB_REMIX, asi que la cancion arranca en vez de morir.
+     *
+     * Un error de red determinista (sin internet, DNS) NO se reintenta: solo haria esperar al
+     * usuario para dar el mismo error.
+     */
+    private suspend fun resolvePlayerResponse(mediaId: String): PlayerResult {
+        var lastFailure: Throwable? = null
+        var walledDetail: String? = null
+        repeat(RESOLVE_MAX_ATTEMPTS) { attempt ->
+            val result = YouTube.player(mediaId)
+            val playerResult = result.getOrNull()
+            if (playerResult != null && playerResult.response.playabilityStatus.status == "OK") {
+                // El muro pudo pegar y el rescate haber ganado sin que el usuario se enterara: eso
+                // tambien es un dato, y es el que dice si el PoToken sirve de algo.
+                playerResult.poTokenAttempt?.let { attemptInfo ->
+                    reportBotWall(
+                        mediaId = mediaId,
+                        detail = "resuelto | $attemptInfo | cliente=${playerResult.clientUsed}",
+                    )
+                }
+                return playerResult
+            }
+
+            val throwable = result.exceptionOrNull()
+            when (throwable) {
+                is ConnectException, is UnknownHostException -> throw PlaybackException(
+                    getString(R.string.error_no_internet), throwable, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+                )
+
+                is SocketTimeoutException -> throw PlaybackException(
+                    getString(R.string.error_timeout), throwable, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
+                )
+            }
+
+            val playabilityStatus = playerResult?.response?.playabilityStatus
+            val walled = playabilityStatus?.status == "LOGIN_REQUIRED" ||
+                playabilityStatus?.reason?.contains("not a bot", ignoreCase = true) == true
+            if (walled) {
+                walledDetail = "sin rescate | intento=${playerResult?.poTokenAttempt ?: "sin intento"} | " +
+                    "cliente=${playerResult?.clientUsed}"
+            }
+
+            lastFailure = throwable ?: PlaybackException(
+                playabilityStatus?.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR
+            )
+
+            if (attempt < RESOLVE_MAX_ATTEMPTS - 1) {
+                val backoff = if (walled) RESOLVE_WALL_RETRY_DELAY_MS else RESOLVE_RETRY_DELAY_MS
+                Log.w(
+                    "KernelVelqi",
+                    "player() fallo (intento ${attempt + 1}/$RESOLVE_MAX_ATTEMPTS, walled=$walled): " +
+                        "${throwable?.javaClass?.simpleName} ${throwable?.message}. Reintento en ${backoff}ms"
+                )
+                delay(backoff)
+            }
+        }
+        // Se perdio la reproduccion por el muro: este caso si se reporta siempre.
+        walledDetail?.let { reportBotWall(mediaId = mediaId, detail = it, always = true) }
+
+        throw when (val failure = lastFailure) {
+            is PlaybackException -> failure
+            null -> PlaybackException(getString(R.string.error_unknown), null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+            else -> PlaybackException(getString(R.string.error_unknown), failure, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+        }
+    }
+
+    /** Evita reportar una vez por cancion cuando el muro esta pegado durante toda la sesion. */
+    private val botWallReported = AtomicBoolean(false)
+
+    /**
+     * Telemetria del muro anti-bot: no-fatal y flavor-aware via [reportException] (Crashlytics en
+     * `full`, solo log en `foss`).
+     *
+     * Sin esto se va a ciegas: no se sabe si el muro pega de verdad, con que cliente se sale ni si
+     * habia sesion. El caso "resuelto" se manda **una sola vez por proceso** (con el muro pegado
+     * seria una por cancion); el caso "sin rescate" se manda siempre, porque ahi si se perdio
+     * reproduccion.
+     */
+    private fun reportBotWall(mediaId: String, detail: String, always: Boolean = false) {
+        // El aviso de la UI se enciende SIEMPRE que se detecta el muro, sea rescatado o no: es la
+        // unica forma de que el usuario se entere de que iniciar sesion lo evita. Escribir la
+        // preferencia es idempotente, asi que no hay ruido aunque el muro pegue en cada cancion.
+        scope.launch(Dispatchers.IO) {
+            dataStore.edit { it[BotWallDetectedKey] = true }
+        }
+        if (!always && !botWallReported.compareAndSet(false, true)) return
+        val hasSession = YouTube.cookie?.contains("SAPISID") == true
+        reportException(BotWallException("muro anti-bot | $detail | sesion=$hasSession | mediaId=$mediaId"))
     }
 
     private fun createRenderersFactory() =
@@ -939,6 +1031,24 @@ class MusicService : MediaLibraryService(),
         const val NOTIFICATION_ID = 888
         const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 512 * 1024L
+
+        /**
+         * Intentos de resolucion de `/player` por pista. Un fallo transitorio no debe detener la
+         * cancion: el reintento cubre el muro anti-bot que el BotGuard esta terminando de calentar.
+         */
+        const val RESOLVE_MAX_ATTEMPTS = 2
+
+        /** Espera tras un muro anti-bot: cubre el arranque en frio del BotGuard (~2-5 s). */
+        const val RESOLVE_WALL_RETRY_DELAY_MS = 3_000L
+
+        /** Espera tras un fallo sin muro: suficiente para un hipo de red, sin hacer esperar de mas. */
+        const val RESOLVE_RETRY_DELAY_MS = 500L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
     }
 }
+
+/**
+ * Evento de diagnostico, no un fallo real: YouTube devolvio el muro anti-bot. Se reporta como
+ * no-fatal para poder medir su frecuencia real (filtrable por nombre en Crashlytics).
+ */
+private class BotWallException(message: String) : Exception(message)

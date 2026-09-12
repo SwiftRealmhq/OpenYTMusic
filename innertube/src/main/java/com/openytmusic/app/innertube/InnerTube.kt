@@ -3,6 +3,8 @@ package com.openytmusic.app.innertube
 import com.openytmusic.app.innertube.encoder.brotli
 import com.openytmusic.app.innertube.models.Context
 import com.openytmusic.app.innertube.models.YouTubeClient
+import com.openytmusic.app.innertube.models.YouTubeClient.Companion.WEB
+import com.openytmusic.app.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.openytmusic.app.innertube.models.YouTubeLocale
 import com.openytmusic.app.innertube.models.body.*
 import com.openytmusic.app.innertube.utils.parseCookieString
@@ -89,18 +91,26 @@ class InnerTube {
                 append("Referer", client.referer)
             }
             if (setLogin) {
-                cookie?.let { cookie ->
-                    append("cookie", cookie)
-                    if ("SAPISID" !in cookieMap) return@let
-                    val currentTime = System.currentTimeMillis() / 1000
-                    val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} https://music.youtube.com")
-                    append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
-                }
+                cookie?.let { append("cookie", it) }
             }
         }
+        if (setLogin) sapisidHashHeader("https://music.youtube.com")
         userAgent(client.userAgent)
         parameter("key", client.api_key)
         parameter("prettyPrint", false)
+    }
+
+    /**
+     * Firma `SAPISIDHASH`: es como la familia **web** de InnerTube reconoce una sesion
+     * autenticada. Los clientes moviles (ANDROID/IOS) se autentican solo con la cookie; la web
+     * exige ademas este `Authorization`, asi que mandar la cookie sin firma equivale a ir sin
+     * sesion — y con IP de datacenter eso es justo lo que dispara el muro anti-bot.
+     */
+    private fun HttpRequestBuilder.sapisidHashHeader(origin: String) {
+        val sapisid = cookieMap["SAPISID"] ?: return
+        val currentTime = System.currentTimeMillis() / 1000
+        val sapisidHash = sha1("$currentTime $sapisid $origin")
+        header("Authorization", "SAPISIDHASH ${currentTime}_$sapisidHash")
     }
 
     suspend fun search(
@@ -128,12 +138,17 @@ class InnerTube {
         poToken: String? = null,
         visitorData: String? = null,
     ) = httpClient.post("https://www.youtube.com/youtubei/v1/player") {
-        // Kernel de Velqi: request identico al de Velqi (misma API InnerTube):
-        // solo Content-Type + User-Agent del cliente (+ cookie si hay sesion).
-        // Sin parametro key, sin X-YouTube-Client-*, sin visitorData.
+        // Kernel de Velqi: request medido contra la API real — solo Content-Type + User-Agent del
+        // cliente (+ cookie si hay sesion). Sin parametro key ni cabeceras X-YouTube-Client-*:
+        // asi es como responden OK los clientes moviles.
         contentType(ContentType.Application.Json)
         userAgent(client.userAgent)
         cookie?.let { header("cookie", it) }
+        // La familia web solo acepta la sesion si va firmada con SAPISIDHASH: sin firma, mandar
+        // la cookie es lo mismo que no mandarla.
+        if (client == WEB || client == WEB_REMIX) {
+            sapisidHashHeader("https://music.youtube.com")
+        }
         setBody(
             PlayerBody(
                 context = Context(

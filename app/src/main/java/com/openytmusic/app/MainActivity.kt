@@ -133,6 +133,7 @@ import com.openytmusic.app.playback.MusicService
 import com.openytmusic.app.playback.MusicService.MusicBinder
 import com.openytmusic.app.playback.PlayerConnection
 import com.openytmusic.app.playback.queues.ListQueue
+import com.openytmusic.app.ui.component.BotWallNotice
 import com.openytmusic.app.ui.component.BottomSheetMenu
 import com.openytmusic.app.ui.component.IconButton
 import com.openytmusic.app.ui.component.LocalMenuState
@@ -1008,6 +1009,16 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+
+                    // Aviso cuando YouTube pidio verificacion (muro anti-bot). Va de ultimo en el
+                    // BoxWithConstraints a proposito: asi flota por encima del reproductor, la
+                    // barra de navegacion y el miniplayer, sin depender de la pantalla abierta.
+                    BotWallNotice(
+                        onLogin = { navController.navigate("login") },
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 12.dp, start = 12.dp, end = 12.dp)
+                    )
 
                     // Absorbe el BACK fantasma que el IME dispara al cerrarse tras
                     // pulsar Enter con teclado fisico: sin esto, popea la pantalla de

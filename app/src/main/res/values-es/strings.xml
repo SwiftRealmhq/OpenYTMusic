@@ -359,4 +359,14 @@
     <string name="use_login_for_browse">Utilice el inicio de sesión para ver el contenido</string>
     <string name="use_login_for_browse_desc">Esto puede influir en el contenido que ve y, por ejemplo, muestra álbumes exclusivos si ha iniciado sesión con una cuenta Premium</string>
     <string name="action_login">Acceder</string>
+
+    <!-- Aviso del muro anti-bot de YouTube -->
+    <string name="bot_wall_title">YouTube pidió verificación</string>
+    <string name="bot_wall_desc">Inicia sesión con tu cuenta de YouTube Music y esto no vuelve a pasar. Sin sesión la reproducción sigue funcionando.</string>
+    <string name="bot_wall_dismiss">Ahora no</string>
+    <string name="bot_wall_login">Iniciar sesión</string>
+
+    <!-- Beneficios de iniciar sesión, para la sección de YouTube Music en Ajustes -->
+    <string name="login_benefits_title">Inicia sesión en YouTube Music</string>
+    <string name="login_benefits_desc">Importa tus playlists y Me gusta, y evita los bloqueos de verificación de YouTube al reproducir.</string>
 </resources>
