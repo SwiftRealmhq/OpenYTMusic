@@ -113,42 +113,6 @@ fun DiscordSettings(
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)))
 
-        AnimatedVisibility(
-            visible = !infoDismissed
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.info),
-                    contentDescription = null,
-                    modifier = Modifier.padding(16.dp)
-                )
-
-                Text(
-                    text = stringResource(R.string.discord_information),
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-
-                TextButton(
-                    onClick = {
-                        infoDismissed = true
-                    },
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(16.dp)
-                ) {
-                    Text(stringResource(R.string.dismiss))
-                }
-            }
-        }
-
         PreferenceGroupTitle(
             title = stringResource(R.string.account)
         )

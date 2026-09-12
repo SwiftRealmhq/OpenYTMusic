@@ -93,3 +93,6 @@ output-metadata.json
 # Artefactos de debug local
 pantalla.png
 ver_pantalla.html
+
+# Keystore de release de OpenYTMusic
+openytmusic-release.jks

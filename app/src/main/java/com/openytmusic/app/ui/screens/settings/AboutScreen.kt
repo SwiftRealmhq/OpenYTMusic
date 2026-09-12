@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
@@ -70,29 +71,21 @@ fun AboutScreen(
     ) {
         Spacer(Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(androidx.compose.foundation.layout.WindowInsetsSides.Top)))
 
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
 
-        // --- Hero: logo y nombre ---------------------------------------------
+        // --- Encabezado: solo el banner, con animacion de entrada ------------
         AnimatedVisibility(
             visible = logoVisible,
             enter = fadeIn(animationSpec = tween(durationMillis = 700)) +
-                    scaleIn(initialScale = 0.7f, animationSpec = tween(durationMillis = 700))
+                    scaleIn(initialScale = 0.85f, animationSpec = tween(durationMillis = 700))
         ) {
             Image(
-                // Logo oficial en PNG puro (con transparencia), tal cual nos lo dieron.
-                painter = painterResource(R.drawable.openytmusic_logo),
+                // Banner oficial (PNG puro, con transparencia).
+                painter = painterResource(R.drawable.openytmusic_banner),
                 contentDescription = Kernel.APP_NAME,
-                modifier = Modifier.size(132.dp)
+                modifier = Modifier.fillMaxWidth()
             )
         }
-
-        Spacer(Modifier.height(16.dp))
-
-        Text(
-            text = Kernel.APP_NAME,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
 
         Spacer(Modifier.height(28.dp))
 

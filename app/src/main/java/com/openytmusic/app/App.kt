@@ -45,6 +45,17 @@ class App : Application(), ImageLoaderFactory {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
 
+        // PoToken: BotGuard via WebView (zemer-cipher). Si el WebView esta roto,
+        // el provider devuelve null y la reproduccion cae a los clientes Android.
+        runCatching {
+            com.zemer.cipher.ZemerCipher.initialize(applicationContext)
+            val generator = com.zemer.cipher.potoken.PoTokenGenerator()
+            YouTube.poTokenProvider = { videoId, visitorData ->
+                val result = generator.getWebClientPoToken(videoId, visitorData ?: "")
+                result?.let { it.playerRequestPoToken to it.streamingDataPoToken }
+            }
+        }.onFailure { Timber.w(it, "PoToken no disponible") }
+
         val locale = Locale.getDefault()
         val languageTag = locale.toLanguageTag().replace("-Hant", "") // replace zh-Hant-* to zh-*
         YouTube.locale = YouTubeLocale(

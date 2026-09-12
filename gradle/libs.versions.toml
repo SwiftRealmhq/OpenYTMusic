@@ -2,6 +2,10 @@
 androidGradlePlugin = "8.6.0"
 composeMultiplatform = "1.6.11"
 annotation = "1.8.2"
+collectionKtx = "1.4.5"
+coroutines = "1.9.0"
+serializationJson = "1.7.3"
+okhttp = "4.12.0"
 json = "20240303"
 kotlin = "2.0.10"
 compose = "1.6.8"
@@ -15,6 +19,11 @@ ksp = "2.0.10-1.0.24"
 
 [libraries]
 annotation = { module = "androidx.annotation:annotation", version.ref = "annotation" }
+collection-ktx = { module = "androidx.collection:collection-ktx", version.ref = "collectionKtx" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 guava = { group = "com.google.guava", name = "guava", version = "33.0.0-android" }
 coroutines-guava = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-guava", version = "1.7.3" }
 concurrent-futures = { group = "androidx.concurrent", name = "concurrent-futures-ktx", version = "1.2.0" }

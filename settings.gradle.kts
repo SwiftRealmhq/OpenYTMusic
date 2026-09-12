@@ -10,7 +10,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Velqi-Luna"
+rootProject.name = "OpenYTMusic"
 include(":app")
 include(":desktop")
 include(":innertube")
@@ -19,3 +19,4 @@ include(":lrclib")
 include(":selene")
 include(":material-color-utilities")
 include(":discord-rpc")
+include(":zemer-cipher")

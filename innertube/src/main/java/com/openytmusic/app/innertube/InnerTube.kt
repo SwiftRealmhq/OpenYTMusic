@@ -125,6 +125,8 @@ class InnerTube {
         client: YouTubeClient,
         videoId: String,
         playlistId: String?,
+        poToken: String? = null,
+        visitorData: String? = null,
     ) = httpClient.post("https://www.youtube.com/youtubei/v1/player") {
         // Kernel de Velqi: request identico al de Velqi (misma API InnerTube):
         // solo Content-Type + User-Agent del cliente (+ cookie si hay sesion).
@@ -142,7 +144,7 @@ class InnerTube {
                         androidSdkVersion = client.androidSdkVersion,
                         gl = "US",
                         hl = "en",
-                        visitorData = null,
+                        visitorData = visitorData,
                     )
                 ).let {
                     if (client == YouTubeClient.TVHTML5) {
@@ -155,6 +157,10 @@ class InnerTube {
                 },
                 videoId = videoId,
                 playlistId = playlistId,
+                // PoToken: prueba de origen que evita el "confirm you're not a bot".
+                serviceIntegrityDimensions = poToken?.let {
+                    PlayerBody.ServiceIntegrityDimensions(it)
+                },
                 contentCheckOk = true,
                 racyCheckOk = true,
             )

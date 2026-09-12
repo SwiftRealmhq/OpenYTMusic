@@ -813,8 +813,14 @@ class MusicService : MediaLibraryService(),
 
             val muxedFormat = playerResponse.streamingData?.formats?.firstOrNull { it.url != null }
             val useMuxed = format.isAudio && muxedFormat != null
-            val streamUrl = if (useMuxed) muxedFormat!!.url!! else format.url!!
-            android.util.Log.d("KernelVelqi", "stream itag=" + (if (useMuxed) muxedFormat!!.itag else format.itag) + " muxed=" + useMuxed + " url=" + streamUrl.take(400))
+            var streamUrl = if (useMuxed) muxedFormat!!.url!! else format.url!!
+            // PoToken de streaming: sin el, googlevideo solo sirve ~1MB (403 en seek).
+            YouTube.lastStreamingDataPoToken?.let { pot ->
+                if ("pot=" !in streamUrl) {
+                    streamUrl += (if ('?' in streamUrl) '&' else '?') + "pot=" + pot
+                }
+            }
+            android.util.Log.d("KernelVelqi", "stream itag=" + (if (useMuxed) muxedFormat!!.itag else format.itag) + " muxed=" + useMuxed + " cliente=" + YouTube.lastClientUsed + " pot=" + (YouTube.lastStreamingDataPoToken != null) + " intento=" + YouTube.lastPoTokenAttempt + " url=" + streamUrl.take(300))
             songUrlCache[mediaId] = streamUrl to System.currentTimeMillis() + playerResponse.streamingData!!.expiresInSeconds * 1000L
             dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
         }

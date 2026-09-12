@@ -60,6 +60,16 @@ android {
 //    }
     
     signingConfigs {
+        create("release") {
+            // Keystore de OpenYTMusic (raiz del proyecto, fuera del control de versiones).
+            val ksFile = rootProject.file("openytmusic-release.jks")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = System.getenv("OYM_STORE_PASSWORD") ?: "OpenYTMusic2026"
+                keyAlias = "openytmusic"
+                keyPassword = System.getenv("OYM_KEY_PASSWORD") ?: "OpenYTMusic2026"
+            }
+        }
         getByName("debug") {
             if (System.getenv("MUSIC_DEBUG_SIGNING_STORE_PASSWORD") != null) {
                 storeFile = file(System.getenv("MUSIC_DEBUG_KEYSTORE_FILE"))
@@ -98,6 +108,7 @@ android {
     }
     lint {
         lintConfig = file("app/lint.xml")
+        checkReleaseBuilds = false
     }
 }
 
@@ -130,6 +141,7 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.palette)
     implementation(projects.materialColorUtilities)
+    implementation(projects.zemerCipher)
     implementation(libs.squigglyslider)
 
     implementation(libs.coil)

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/OpenYTMusic-PNGPUROpng" alt="OpenYTMusic" width="160"/>
+<img src="assets/OpenYTMusicBannerOriginal.png" alt="OpenYTMusic" width="100%"/>
 
 # OpenYTMusic
 
@@ -18,6 +18,25 @@ Desarrollado por: Leo
 
 ---
 
+## Tabla de contenido
+
+1. [Stack técnico](#stack-técnico)
+2. [Arquitectura de módulos](#arquitectura-de-módulos)
+3. [Funciones](#funciones)
+4. [Requisitos de build](#requisitos-de-build)
+5. [Variantes de build](#variantes-de-build)
+6. [Compilar paso a paso](#compilar-paso-a-paso)
+7. [Firmar el release](#firmar-el-release)
+8. [Instalar y probar](#instalar-y-probar)
+9. [Logs y diagnóstico](#logs-y-diagnóstico)
+10. [Resolución de streams y anti-bot](#resolución-de-streams-y-anti-bot)
+11. [Problemas comunes](#problemas-comunes)
+12. [API (YouTube Music / InnerTube)](#api-youtube-music--innertube)
+13. [Testear vía código](#testear-vía-código)
+14. [Guía para contribuidores](#guía-para-contribuidores)
+15. [Estado](#estado)
+16. [Disclaimer](#disclaimer)
+
 ## Stack técnico
 
 | Capa | Tecnología |
@@ -28,10 +47,13 @@ Desarrollado por: Leo
 | Persistencia | Room + DataStore (Preferences) |
 | Red | Ktor client + OkHttp |
 | Extracción de streams | Cliente InnerTube propio (rotación de clientes, streams muxed) |
+| Anti-bot | PoToken (BotGuard vía WebView) — módulo `zemer-cipher` |
 | Letras | LrcLib + KuGou + YouTube transcript (con fallback en cascada) |
 | RPC | Discord Rich Presence (módulo `discord-rpc`) |
 | Tema | Rojo YouTube Music (`#FF0000`), acento saturado, dark puro |
-| minSdk / targetSdk / compileSdk | 26 / 35 / 35 |
+| Build | Gradle 8.7 (wrapper) · AGP 8.x · Kotlin 1.9.22 |
+| minSdk / targetSdk / compileSdk | 24 / 35 / 35 |
+| build-tools | 35.0.0 |
 
 ## Arquitectura de módulos
 
@@ -39,6 +61,8 @@ Desarrollado por: Leo
 OpenYTMusic/
 ├── app/                      # Módulo principal (UI, navegación, reproductor, servicios)
 ├── innertube/                # Cliente InnerTube: parseo de respuestas de YouTube Music
+├── zemer-cipher/             # Generación de PoToken (BotGuard en WebView) + firmas de streams
+├── selene/                   # Motor de descargas offline
 ├── lrclib/                   # Cliente de LrcLib (letras sincronizadas)
 ├── kugou/                    # Cliente de KuGou (letras)
 ├── discord-rpc/              # Gateway de Discord (Rich Presence)
@@ -56,37 +80,243 @@ reproducción vive en `com.openytmusic.app.playback` (servicio de media, colas, 
 - **Importar playlists y "Me gusta" desde la cuenta real de YouTube Music** (login con captura
   manual de sesión: el usuario decide qué cuenta conectar)
 - Shuffle determinista: al activarlo, el salto aleatorio ocurre al terminar la pista o avanzar
-- Temporizador de sueño: barra de tiempo libre, "detener al terminar la canción" con contador real
+- Temporizador de sueño: barra de tiempo libre y "detener al terminar la canción" con contador real
 - Letras sincronizadas (LrcLib / KuGou / transcript) y sin sincronizar
+- **PoToken (BotGuard) como rescate automático cuando YouTube responde muro anti-bot**
 - Discord Rich Presence con timestamp tipo Spotify
 - Descargas offline (Selene), colas, radios y mezcla infinita
 - Tema oscuro puro con acento rojo vivo y color dinámico opcional desde la portada
 
 ## Requisitos de build
 
-- **JDK 17** (se verifica con `java -version`)
-- **Android SDK** con `compileSdk 35` / `build-tools 35`
-- Gradle wrapper incluido en el repo (no requiere instalación de Gradle)
+| Requisito | Versión | Nota |
+|---|---|---|
+| JDK | **17** | Obligatorio. Se verifica con `java -version` |
+| Android SDK | API 35 | `compileSdk 35` / `targetSdk 35` |
+| build-tools | **35.0.0** | Necesario para `zipalign` y `apksigner` al firmar |
+| Gradle | 8.7 | Wrapper incluido — no hace falta instalarlo |
+| kotlin / ksp | 1.9.22 | Gestionados por el wrapper y `libs.versions.toml` |
 
-## Compilar
+Configura el SDK con `ANDROID_HOME` o con un `local.properties` en la raíz:
+
+```properties
+sdk.dir=/ruta/a/Android/Sdk
+```
+
+> `local.properties` está en `.gitignore` — nunca se sube.
+
+## Variantes de build
+
+El proyecto tiene dos *flavors* (`version`) × dos *tipos* (`debug` / `release`):
+
+| Flavor | Contenido | Requiere `google-services.json` |
+|---|---|---|
+| `foss` | Sin Google Play Services. Build limpio y reproducible | No |
+| `full` | Firebase (Analytics, Crashlytics, Config, Perf) + ML Kit | Sí |
+
+| Tipo | `applicationId` | Optimización |
+|---|---|---|
+| `debug` | `com.openytmusic.app` **+ `.debug`** | Sin R8, sin recorte de recursos |
+| `release` | `com.openytmusic.app` | R8 + `shrinkResources` + sin `crunchPngs` |
+
+> Al ser `applicationId` distintos, **debug y release se pueden instalar en paralelo**. Para
+> instalar release encima de debug hay que desinstalar antes (firmas distintas).
+
+El APK es **universal** (todas las ABI en un solo archivo): el bloque `splits { abi }` está
+desactivado a propósito en `app/build.gradle.kts`.
+
+## Compilar paso a paso
+
+Todo se ejecuta desde la raíz del proyecto (`Velqi-Kt/`).
+
+### 1. Verificación rápida de tipos (lo más rápido, sin empaquetar)
 
 ```bash
-# Debug (desarrollo / testeo)
-./gradlew :app:assembleFossDebug
+./gradlew :app:compileFossReleaseKotlin
+```
 
-# Release (firma aparte, no automatizada)
+### 2. Debug (desarrollo y testeo en dispositivo)
+
+```bash
+./gradlew :app:assembleFossDebug
+```
+
+Salida: `app/build/outputs/apk/foss/debug/app-foss-debug.apk` (~25 MB).
+
+### 3. Release optimizado (el que se distribuye)
+
+```bash
 ./gradlew :app:assembleFossRelease
 ```
 
-Salidas:
+Salida: `app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk` (~7,7 MB, **sin firmar**).
+R8 + recorte de recursos bajan el APK de ~25 MB a ~7,7 MB. En este entorno tarda ~20-60 s en
+caliente; la primera vez (sin caché de Gradle) puede pasar de 5 minutos.
 
-| Variante | Ruta |
+### 4. APK completo (con Firebase)
+
+```bash
+./gradlew :app:assembleFullRelease
+```
+
+Necesita `google-services.json` en `app/`. Un build cuyo nombre de tarea **no** contenga `foss`
+activa automáticamente los plugins de Firebase (`isFullBuild` en `build.gradle.kts` raíz).
+
+### 5. Limpieza
+
+```bash
+./gradlew clean          # limpia build/ de todos los módulos
+./gradlew --stop         # detiene el daemon de Gradle (útil si algo queda trabado)
+```
+
+## Firmar el release
+
+El build produce un APK **sin firmar**: la keystore vive fuera del control de versiones
+(`openytmusic-release.jks`, en la raíz y en `.gitignore`) y no se comparte.
+
+**Credenciales** (mismas que usa `signingConfigs.release` en `app/build.gradle.kts`):
+
+| Dato | Valor |
 |---|---|
-| Debug | `app/build/outputs/apk/foss/debug/app-foss-debug.apk` |
-| Release | `app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk` |
+| Archivo | `openytmusic-release.jks` (raíz del proyecto) |
+| Alias | `openytmusic` |
+| Contraseña de store | variable `OYM_STORE_PASSWORD` (respaldo: `OpenYTMusic2026`) |
+| Contraseña de clave | variable `OYM_KEY_PASSWORD` (respaldo: `OpenYTMusic2026`) |
 
-> El release requiere firma manual (`apksigner`) con la keystore privada. La keystore **no** vive
-> en este repositorio y **no se comparte** con contribuidores.
+Firma manual con `zipalign` + `apksigner` (es el flujo usado para publicar):
+
+```bash
+BT="$ANDROID_HOME/build-tools/35.0.0"
+
+# 1) Alinear el APK (obligatorio antes de firmar)
+"$BT/zipalign" -f -p 4 \
+  app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk \
+  /tmp/oym-aligned.apk
+
+# 2) Firmar
+"$BT/apksigner" sign \
+  --ks openytmusic-release.jks \
+  --ks-key-alias openytmusic \
+  --ks-pass env:OYM_STORE_PASSWORD \
+  --key-pass env:OYM_KEY_PASSWORD \
+  --out OpenYTMusic-0.5.0-release.apk \
+  /tmp/oym-aligned.apk
+
+# 3) Verificar la firma (imprime el certificado)
+"$BT/apksigner" verify --print-certs OpenYTMusic-0.5.0-release.apk
+```
+
+Salida esperada del paso 3: `Signer #1 certificate DN: CN=OpenYTMusic, ...` y
+`Signer #1 certificate SHA-256 digest: b37ab893...`.
+
+> **Guarda la keystore y sus contraseñas.** Perderla significa que no podrás volver a
+> actualizar la app firmada: Android rechaza cualquier APK firmado con otra clave.
+
+## Instalar y probar
+
+```bash
+# Dispositivo por USB
+adb install -r OpenYTMusic-0.5.0-release.apk
+
+# Emulador / Waydroid por red
+adb connect 192.168.240.112:5555
+adb install -r OpenYTMusic-0.5.0-release.apk
+
+# Desinstalar y empezar de cero (borra biblioteca local y sesión)
+adb uninstall com.openytmusic.app
+```
+
+Comprobación rápida de que la app está viva y reproduciendo:
+
+```bash
+adb shell dumpsys media_session | grep -E "state=PlaybackState"
+# state=3 -> reproduciendo · state=2 -> pausado · error=null -> sin errores
+```
+
+## Logs y diagnóstico
+
+Tags útiles de `logcat`:
+
+| Tag | Qué muestra |
+|---|---|
+| `KernelVelqi` | Resolución de streams: `itag`, si es muxed, **cliente ganador**, `pot=`, intento con PoToken y URL (recortada) |
+| `PoTokenGenerator` / `PoTokenWebView` | Ciclo de vida del BotGuard: WebView, `botguardResponse`, minter, token generado |
+| `VelqiRPC` | Discord Rich Presence (gateway, presencia enviada) |
+| `Timber` (resto) | Errores de red, sesión y parseo |
+
+```bash
+# Solo lo importante, en vivo
+adb logcat -c                      # limpia el buffer
+adb logcat | grep -E "KernelVelqi|PoToken|VelqiRPC"
+
+# Volcado de todo el buffer a un archivo
+adb logcat -d > logcat.txt
+```
+
+Lectura del log de reproducción:
+
+```
+KernelVelqi: stream itag=18 muxed=true cliente=ANDROID pot=false intento=null url=...
+```
+
+- `cliente=` → cliente que entregó los streams (`ANDROID`, `IOS`, `WEB_REMIX+pot`, `ANDROID_VR`, `TVHTML5+piped`).
+- `pot=true/false` → si la URL lleva token de atestación (solo cuando ganó el camino web).
+- `intento=` → resultado del intento con PoToken; `null` cuando **no fue necesario** levantarlo.
+
+## Resolución de streams y anti-bot
+
+La obtención de streams vive en `innertube/YouTube.kt` → `player()`. La estrategia está
+**medida contra la API real**, no asumida:
+
+| Paso | Cliente | Estrategia |
+|---|---|---|
+| 1 | `ANDROID` (con cookie de sesión si existe) | Camino normal. En la práctica responde `OK` siempre |
+| 2 | `IOS` | Respaldo del anterior |
+| 3 | `WEB_REMIX` + **PoToken** | Solo si los anteriores devolvieron muro anti-bot (`LOGIN_REQUIRED` / *"not a bot"*). Levanta el WebView **únicamente aquí** |
+| 4 | `ANDROID_VR` | Último recurso móvil |
+| 5 | `TVHTML5` + piped | Fallback histórico para streams muxed |
+
+Resultados medidos desde una red de datacenter (Waydroid) con y sin sesión:
+
+| Cliente | Resultado |
+|---|---|
+| `ANDROID` | ✅ `OK`, 25 formatos |
+| `IOS` | ✅ `OK`, 23 formatos |
+| `ANDROID_VR` | ❌ `LOGIN_REQUIRED` — *"Sign in to confirm you're not a bot"* |
+| `WEB_REMIX` / `WEB` | ❌ `UNPLAYABLE` — *"Video unavailable"* (desde esa red) |
+| `TVHTML5` | ❌ *"YouTube is no longer supported in this application"* |
+
+### Cómo funciona el PoToken
+
+El PoToken (*Proof of Origin Token*) es la prueba de que la petición viene de un navegador
+legítimo. El módulo `zemer-cipher` resuelve el desafío de BotGuard de YouTube dentro de un
+**WebView invisible** y devuelve dos tokens:
+
+- `playerRequestPoToken` → token **ligado a la sesión** (`visitorData`); viaja en el cuerpo de
+  la petición a `/player` como `serviceIntegrityDimensions.poToken`.
+- `streamingDataPoToken` → token **ligado al video**; se añade como `pot=` a la URL del stream.
+  Sin él, googlevideo puede servir solo el primer ~1 MB (corta al hacer seek).
+
+Reglas de diseño ya implementadas (no romper):
+
+1. **El PoToken nunca va primero.** Si los clientes móviles responden `OK`, el WebView no se
+   levanta y la reproducción no paga los ~2-5 s de su arranque.
+2. **El `pot=` solo se inyecta cuando la respuesta web es la que se va a reproducir.** Añadirlo
+   a URLs de clientes Android no aporta y ensucia el diagnóstico.
+3. **Si falla, no rompe nada:** la cadena sigue con los clientes móviles.
+
+## Problemas comunes
+
+| Síntoma | Causa y solución |
+|---|---|
+| *"Sign in to confirm you're not a bot"* en el reproductor | Muro anti-bot de YouTube. Abre **Ajustes → YouTube Music** e inicia sesión: con cookies las peticiones van autenticadas y el muro desaparece. También se activa solo el rescate con PoToken. Revisa `cliente=` e `intento=` en `KernelVelqi` para ver qué pasó |
+| La reproducción tarda ~2-5 s en empezar | El WebView del PoToken se está levantando. Solo debería ocurrir tras un muro; si se repite en cada canción, revisa el orden de clientes en `player()` |
+| Error de KSP con rutas de paquetes viejas | Caché de KSP tras mover/renombrar paquetes: `./gradlew clean` y recompilar (el daemon también con `./gradlew --stop`) |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | El APK release está firmado con otra clave que el instalado (o hay debug instalado). `adb uninstall com.openytmusic.app` y reinstalar |
+| El APK release no se instala encima del debug | Son apps distintas por `applicationId` (`.debug`); desinstala el debug si quieres el mismo paquete |
+| `signingConfig` no encuentra la keystore | `openytmusic-release.jks` no está en la raíz del proyecto. Sin ella, compila sin firmar (`app-foss-release-unsigned.apk`) |
+| Waydroid/emulador no aparece en `adb devices` | `adb connect <ip>:5555` (Waydroid suele ser `192.168.240.112`) |
+| Playlists no aparecen tras iniciar sesión | YouTube entrega playlists privadas solo a sesiones completas. Cierra la app y ábrela; si persiste, **Cerrar sesión** y volver a capturar la sesión eligiendo la cuenta correcta |
 
 ## API (YouTube Music / InnerTube)
 
@@ -112,16 +342,30 @@ Reglas de uso:
   la capa de UI nunca habla con la API directamente.
 - No modifiques la lógica de obtención de streams sin validar en dispositivo: cualquier cambio
   ahí afecta la reproducción global de la app.
+- La sesión se captura del `CookieManager` del WebView de login (misma autenticación que la web:
+  `SAPISID` + `SAPISIDHASH`). No hay atajos ni credenciales guardadas en texto plano fuera del
+  almacén de preferencias de la app.
 
 ## Testear vía código
 
-- Ejecutar el **linter** de Kotlin: `./gradlew :app:lintFossDebug`
-- Tests unitarios del cliente InnerTube: `./gradlew :innertube:test`
-- Verificación de tipos sin emitir artefactos: `./gradlew :app:compileFossDebugKotlin`
-- Instalación directa en dispositivo/emulador: `adb install -r app-foss-debug.apk`
+```bash
+./gradlew :app:compileFossDebugKotlin   # verificación de tipos (rápida)
+./gradlew :app:lintFossDebug            # linter de Android/Kotlin
+./gradlew :innertube:test               # tests unitarios del cliente InnerTube
+```
+
+Instalación directa en dispositivo/emulador:
+
+```bash
+adb install -r app/build/outputs/apk/foss/debug/app-foss-debug.apk
+```
 
 La estrategia de testing es conservadora: los cambios deben validarse en dispositivo real
-(reproducción, colas, letras y RPC) antes de abrir un PR.
+(reproducción, colas, letras y RPC) antes de abrir un PR. Checklist mínimo por cambio:
+
+1. `./gradlew :app:compileFossReleaseKotlin` sin errores.
+2. Reproducción real con `cliente=ANDROID` en el log y `error=null` en `dumpsys media_session`.
+3. Saltar 2-3 canciones y confirmar que la resolución sigue siendo inmediata.
 
 ## Guía para contribuidores
 
@@ -137,11 +381,12 @@ La estrategia de testing es conservadora: los cambios deben validarse en disposi
    - Prohibido subir APKs, keystores, tokens o secretos (el `.gitignore` los excluye).
    - Prohibido copiar o divulgar el código fuera del repo.
 4. **Reporting**: los bugs se describen en un issue con pasos de reproducción, build y
-   logs de `logcat` (`adb logcat` filtrando por `openytmusic`).
+   logs de `logcat` (`adb logcat` filtrando por `KernelVelqi`).
 
 ## Estado
 
-- **Versión**: 0.5.0
+- **Versión**: 0.5.0 (`versionCode` 31)
+- **APK release**: universal, ~7,7 MB firmado
 - **Visibilidad**: privado — no público, no forkable, sin mirrors
 - **Propósito del repo**: copia de seguridad en la nube y colaboración cerrada
 - **Licencia**: código cerrado — todos los derechos reservados por Leo
