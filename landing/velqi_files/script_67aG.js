@@ -1,15 +1,15 @@
 /**
- * Velqi Luna App - Main JavaScript
+ * OpenYTMusic — Main JavaScript
  * Versión: 2.0.0
- * Descripción: Script principal para la aplicación web Velqi Luna
+ * Descripción: Script principal de la landing de OpenYTMusic
  */
 
 const APP_CONFIG = {
   repositories: {
     android: {
-      repo: 'root-leo/Velqi-Luna',
-      currentVersion: '0.3.0',
-      downloadFormat: 'Velqi-Luna-0.3.0.apk',
+      repo: 'root-leo/OpenYTMusic',
+      currentVersion: '0.5.0',
+      downloadFormat: 'OpenYTMusic-0.5.0.apk',
       elements: {
         version: 'android-version-badge',
         download: 'android-download-btn',
@@ -21,9 +21,9 @@ const APP_CONFIG = {
       }
     },
     windows: {
-      repo: 'root-leo/Velqi-Luna',
+      repo: 'root-leo/OpenYTMusic',
       currentVersion: '1.9.0',
-      downloadFormat: 'Velqi-Luna-{version}.apk',
+      downloadFormat: 'OpenYTMusic-{version}.apk',
       elements: {
         version: 'currentVersionWindows',
         download: 'downloadBtnWindows',
@@ -48,7 +48,7 @@ const APP_CONFIG = {
   checkInterval: 60 * 60 * 1000
 };
 
-class VelqiApp {
+class OpenYTMusicApp {
   constructor(config) {
     this.config = config;
     this.themeManager = new ThemeManager(config.elements.theme);
@@ -66,7 +66,7 @@ class VelqiApp {
     this.logoManager.init();
     this.versionManager.init();
     this.configureMarkdown();
-    console.log('Velqi Luna App inicializada correctamente');
+    console.log('OpenYTMusic — landing inicializada correctamente');
   }
 
   configureMarkdown() {
@@ -332,7 +332,7 @@ class AndroidVersionHandler extends BaseVersionHandler {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (!data.body) throw new Error('Sin notas de versión');
-      const date = new Date(data.published_at).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+      const date = new Date(data.published_at).toLocaleDateString(OYT_LOCALES[OYT_LANG] || 'es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
       content.innerHTML = `
         <div style="padding:4px 0">
           <p style="font-size:13px;opacity:.6;margin-bottom:16px">${date}</p>
@@ -354,7 +354,7 @@ class AndroidVersionHandler extends BaseVersionHandler {
       list.innerHTML = releases.map((release, i) => {
         const type = release.prerelease ? 'beta' : (release.tag_name.toLowerCase().includes('alpha') ? 'alpha' : 'stable');
         const label = type === 'stable' ? 'Estable' : (type === 'beta' ? 'Beta' : 'Alpha');
-        const date = new Date(release.published_at).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+        const date = new Date(release.published_at).toLocaleDateString(OYT_LOCALES[OYT_LANG] || 'es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
         const downloadUrl = release.assets[0]?.browser_download_url || '#';
         return `
           <div class="version-list-item">
@@ -474,14 +474,146 @@ class CarouselManager {
   }
 }
 
+/* ── Carrusel de capturas (En acción) ── */
+class ScreenshotsCarousel {
+  constructor(rootId) {
+    this.root = document.getElementById(rootId);
+    if (!this.root) return;
+
+    this.track = this.root.querySelector('#shots-track');
+    this.slides = this.root.querySelectorAll('.screenshots-slide');
+    this.indicators = Array.from(this.root.querySelectorAll('.screenshots-indicator'));
+    this.prevBtn = this.root.querySelector('#shots-prev');
+    this.nextBtn = this.root.querySelector('#shots-next');
+
+    if (!this.track || this.slides.length < 2) return;
+
+    this.index = 0;
+    this.timer = null;
+    this.delay = 3000;
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.init();
+  }
+
+  init() {
+    this.prevBtn?.addEventListener('click', () => this.go(this.index - 1, true));
+    this.nextBtn?.addEventListener('click', () => this.go(this.index + 1, true));
+    this.indicators.forEach((dot, i) => dot.addEventListener('click', () => this.go(i, true)));
+
+    // Pausa el avance automático mientras el usuario interactúa
+    this.root.addEventListener('mouseenter', () => this.stop());
+    this.root.addEventListener('mouseleave', () => this.start());
+    this.root.addEventListener('focusin', () => this.stop());
+    this.root.addEventListener('focusout', () => this.start());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.stop(); else this.start();
+    });
+
+    this.render();
+    this.start();
+  }
+
+  go(target, fromUser) {
+    const total = this.slides.length;
+    this.index = ((target % total) + total) % total;
+    this.render();
+    if (fromUser) {
+      this.stop();
+      this.start();
+    }
+  }
+
+  render() {
+    this.track.style.transform = `translateX(-${this.index * 100}%)`;
+    this.indicators.forEach((dot, i) => dot.classList.toggle('is-active', i === this.index));
+  }
+
+  start() {
+    if (this.reducedMotion || this.timer) return;
+    this.timer = setInterval(() => this.go(this.index + 1, false), this.delay);
+  }
+
+  stop() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+}
+
+/* ── Glifos cambiantes (firma del fundador) ── */
+class GlyphScrambler {
+  constructor(el) {
+    this.el = el;
+    this.length = parseInt(el.dataset.glyphs || '6', 10);
+    this.speed = parseInt(el.dataset.speed || '75', 10);
+    this.set = 'ΞΨΩΔΣΦΘΛΠЖЩДЦФЭЮЯ◈◇◊○●□■△▽▷◁⬡⬢⌘☉☽☾†‡§';
+
+    this.paint();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    this.timer = setInterval(() => this.paint(), this.speed);
+  }
+
+  paint() {
+    let out = '';
+    for (let i = 0; i < this.length; i++) {
+      out += this.set.charAt(Math.floor(Math.random() * this.set.length));
+    }
+    this.el.textContent = out;
+  }
+}
+
+/* ── Revelado de secciones al hacer scroll ── */
+function initScrollReveal() {
+  const items = document.querySelectorAll('[data-reveal]');
+  if (!items.length) return;
+
+  if (!('IntersectionObserver' in window)) {
+    items.forEach(el => el.classList.add('is-in'));
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-in');
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0, rootMargin: '0px 0px -12% 0px' });
+
+  requestAnimationFrame(() => items.forEach(el => observer.observe(el)));
+}
+
+/* ── Nav con más presencia al hacer scroll ── */
+function initNavScrollState() {
+  const nav = document.getElementById('main-nav');
+  if (!nav) return;
+
+  const update = () => nav.classList.toggle('is-scrolled', window.scrollY > 24);
+  update();
+  window.addEventListener('scroll', update, { passive: true });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  const app = new VelqiApp(APP_CONFIG);
+  const app = new OpenYTMusicApp(APP_CONFIG);
   app.init();
 
   if (document.querySelectorAll('.carousel-image').length && document.getElementById('popupOverlay')) {
     app.carouselManager = new CarouselManager();
     app.carouselManager.init();
   }
+
+  app.screenshotsCarousel = new ScreenshotsCarousel('shots-carousel');
+
+  app.glyphScramblers = Array.from(document.querySelectorAll('.glyph-scramble'))
+    .map(el => new GlyphScrambler(el));
+
+  app.i18nManager = new I18nManager();
+  app.i18nManager.init();
+
+  initScrollReveal();
+  initNavScrollState();
 });
 
 
@@ -489,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
 (async function updateOssVersion() {
   const badge = document.getElementById('oss-version-badge');
   if (!badge) return;
-  badge.textContent = '0.3.0';
+  badge.textContent = '0.5.0';
 })();
 
 
@@ -554,23 +686,226 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
+/* ══════════════════════════════════════════════════════════
+   INTERNACIONALIZACIÓN — español / inglés / portugués
+   ══════════════════════════════════════════════════════════ */
+const I18N = {
+  es: {
+    'meta.title': 'OpenYTMusic',
+    'meta.description': 'OpenYTMusic — cliente de YouTube Music sin anuncios para Android. Material Design 3, letras, descargas offline y anti-bloqueos.',
+    'nav.download': 'Descargar',
+    'hero.lead': 'Un cliente de YouTube Music para Android: reproducción en segundo plano, descargas offline e importa tus playlists de YouTube Music. Sin anuncios.',
+    'cta.download': 'Descargar',
+    'section.action': 'En acción',
+    'section.frictionless': 'Música sin fricción',
+    'os.lead': 'OpenYTMusic es un cliente alternativo y ligero de YouTube Music, construido sobre Material Design 3 y pensado para el usuario común. Hecho por un fan de la música.',
+    'os.chip1': 'Cliente alternativo',
+    'os.chip2': 'API privada',
+    'os.role': 'Fundador y Desarrollador',
+    'os.version': 'Última versión estable',
+    'support.title': '¿Dudas o sugerencias?',
+    'support.lead': 'Escríbeme por Discord y te respondo al momento.',
+    'support.cta': 'Contactar por Discord',
+    'section.downloads': 'Descargas',
+    'dl.lead': 'Descarga la versión más reciente de OpenYTMusic para tu plataforma.',
+    'dl.androidSub': 'La última versión de OpenYTMusic.',
+    'dl.chipRelease': 'Release',
+    'dl.requires': 'Requiere Android 7.0+ (minSdk 24)',
+    'dl.windowsSub': 'El desarrollo está cerrado actualmente.',
+    'dl.chipClosed': 'Cerrado',
+    'dl.chipUnavailable': 'No disponible',
+    'dl.seeChanges': 'Ver cambios',
+    'dl.prevVersions': 'Versiones anteriores',
+    'dl.unavailable': 'No disponible',
+    'footer.action': 'En acción',
+    'footer.downloads': 'Descargas',
+    'footer.rights': '. Todos los derechos reservados.',
+    'footer.disclaimer': 'OpenYTMusic y su contenido no están afiliados con YouTube, Google LLC ni sus afiliados. Las marcas pertenecen a sus respectivos dueños.',
+    'dialog.changelog': 'Registro de cambios',
+    'dialog.versions': 'Versiones anteriores',
+    'dialog.latest': 'Más reciente',
+    'dialog.download': 'Descargar',
+    'dialog.noVersions': 'No hay versiones disponibles.',
+    'dialog.noNotes': 'Sin notas disponibles.',
+    'dialog.errorChanges': 'Error al cargar cambios',
+    'dialog.errorVersions': 'Error al cargar versiones',
+    'loading': 'Cargando',
+    'changelog.body': '### OpenYTMusic 0.5.0\n\n- Rescate anti-bot con PoToken: la música ya no se corta cuando YouTube pide verificación\n- Aviso en el reproductor cuando aparece una verificación, con acceso directo al inicio de sesión\n- Inicio de sesión de YouTube Music destacado en Ajustes: importa tus playlists y «Me gusta»\n- La sesión firmada (SAPISIDHASH) también cuenta en la resolución de streams\n- Resolución de streams con reintento acotado y sin estado global compartido\n- Bucle de reproducción garantizado en cualquier cola y lista\n- Inicialización del PoToken en segundo plano, sin bloquear la canción\n- Correcciones varias y compilación de escritorio restaurada',
+    'rel.body.050': 'Anti-bot con PoToken, aviso de verificación, login destacado para importar playlists, bucle de colas garantizado y más.',
+    'rel.body.030': 'Reproductor rediseñado, visor de portada, miniplayer flotante con onda, estadísticas reales y más.',
+    'rel.body.020': 'Preview oficial con miniplayer flotante, RPC de Discord y branding nuevo.'
+  },
+  en: {
+    'meta.title': 'OpenYTMusic',
+    'meta.description': 'OpenYTMusic — an ad-free YouTube Music client for Android. Material Design 3, lyrics, offline downloads and anti-bot handling.',
+    'nav.download': 'Download',
+    'hero.lead': 'A YouTube Music client for Android: background playback, offline downloads and import your YouTube Music playlists. No ads.',
+    'cta.download': 'Download',
+    'section.action': 'In action',
+    'section.frictionless': 'Music without friction',
+    'os.lead': 'OpenYTMusic is a lightweight alternative client for YouTube Music, built on Material Design 3 and made for the everyday user. Built by a music fan.',
+    'os.chip1': 'Alternative client',
+    'os.chip2': 'Private API',
+    'os.role': 'Founder and Developer',
+    'os.version': 'Latest stable version',
+    'support.title': 'Questions or suggestions?',
+    'support.lead': 'Message me on Discord and I will reply right away.',
+    'support.cta': 'Contact on Discord',
+    'section.downloads': 'Downloads',
+    'dl.lead': 'Download the latest version of OpenYTMusic for your platform.',
+    'dl.androidSub': 'The latest version of OpenYTMusic.',
+    'dl.chipRelease': 'Release',
+    'dl.requires': 'Requires Android 7.0+ (minSdk 24)',
+    'dl.windowsSub': 'Development is currently closed.',
+    'dl.chipClosed': 'Closed',
+    'dl.chipUnavailable': 'Unavailable',
+    'dl.seeChanges': 'See changes',
+    'dl.prevVersions': 'Previous versions',
+    'dl.unavailable': 'Unavailable',
+    'footer.action': 'In action',
+    'footer.downloads': 'Downloads',
+    'footer.rights': '. All rights reserved.',
+    'footer.disclaimer': 'OpenYTMusic and its content are not affiliated with YouTube, Google LLC or their affiliates. Trademarks belong to their respective owners.',
+    'dialog.changelog': 'Changelog',
+    'dialog.versions': 'Previous versions',
+    'dialog.latest': 'Latest',
+    'dialog.download': 'Download',
+    'dialog.noVersions': 'No versions available.',
+    'dialog.noNotes': 'No release notes available.',
+    'dialog.errorChanges': 'Error loading changes',
+    'dialog.errorVersions': 'Error loading versions',
+    'loading': 'Loading',
+    'changelog.body': '### OpenYTMusic 0.5.0\n\n- PoToken anti-bot rescue: music no longer stops when YouTube asks for verification\n- In-player notice when a verification appears, with a shortcut to sign in\n- YouTube Music sign-in highlighted in Settings: import your playlists and Likes\n- Signed session (SAPISIDHASH) now also counts when resolving streams\n- Stream resolution with bounded retries and no shared global state\n- Playback loop guaranteed in any queue or playlist\n- PoToken warm-up in the background, without blocking the song\n- Misc fixes and desktop build restored',
+    'rel.body.050': 'PoToken anti-bot, verification notice, highlighted sign-in to import playlists, guaranteed queue loop and more.',
+    'rel.body.030': 'Redesigned player, full-screen artwork viewer, floating miniplayer with a wave, real stats and more.',
+    'rel.body.020': 'Official preview with a floating miniplayer, Discord RPC and new branding.'
+  },
+  pt: {
+    'meta.title': 'OpenYTMusic',
+    'meta.description': 'OpenYTMusic — cliente de YouTube Music sem anúncios para Android. Material Design 3, letras, downloads offline e proteção anti-bloqueio.',
+    'nav.download': 'Baixar',
+    'hero.lead': 'Um cliente de YouTube Music para Android: reprodução em segundo plano, downloads offline e importe suas playlists do YouTube Music. Sem anúncios.',
+    'cta.download': 'Baixar',
+    'section.action': 'Em ação',
+    'section.frictionless': 'Música sem atrito',
+    'os.lead': 'OpenYTMusic é um cliente alternativo e leve do YouTube Music, construído sobre Material Design 3 e pensado para o usuário comum. Feito por um fã de música.',
+    'os.chip1': 'Cliente alternativo',
+    'os.chip2': 'API privada',
+    'os.role': 'Fundador e Desenvolvedor',
+    'os.version': 'Última versão estável',
+    'support.title': 'Dúvidas ou sugestões?',
+    'support.lead': 'Me chame no Discord e eu respondo na hora.',
+    'support.cta': 'Falar no Discord',
+    'section.downloads': 'Downloads',
+    'dl.lead': 'Baixe a versão mais recente do OpenYTMusic para a sua plataforma.',
+    'dl.androidSub': 'A versão mais recente do OpenYTMusic.',
+    'dl.chipRelease': 'Release',
+    'dl.requires': 'Requer Android 7.0+ (minSdk 24)',
+    'dl.windowsSub': 'O desenvolvimento está fechado no momento.',
+    'dl.chipClosed': 'Fechado',
+    'dl.chipUnavailable': 'Indisponível',
+    'dl.seeChanges': 'Ver mudanças',
+    'dl.prevVersions': 'Versões anteriores',
+    'dl.unavailable': 'Indisponível',
+    'footer.action': 'Em ação',
+    'footer.downloads': 'Downloads',
+    'footer.rights': '. Todos os direitos reservados.',
+    'footer.disclaimer': 'OpenYTMusic e seu conteúdo não são afiliados ao YouTube, à Google LLC nem às suas afiliadas. As marcas pertencem aos seus respectivos donos.',
+    'dialog.changelog': 'Registro de alterações',
+    'dialog.versions': 'Versões anteriores',
+    'dialog.latest': 'Mais recente',
+    'dialog.download': 'Baixar',
+    'dialog.noVersions': 'Nenhuma versão disponível.',
+    'dialog.noNotes': 'Sem notas de versão disponíveis.',
+    'dialog.errorChanges': 'Erro ao carregar as mudanças',
+    'dialog.errorVersions': 'Erro ao carregar as versões',
+    'loading': 'Carregando',
+    'changelog.body': '### OpenYTMusic 0.5.0\n\n- Resgate anti-bot com PoToken: a música não para mais quando o YouTube pede verificação\n- Aviso no reprodutor quando aparece uma verificação, com atalho para entrar na conta\n- Login do YouTube Music em destaque nas Configurações: importe suas playlists e Curtidas\n- A sessão assinada (SAPISIDHASH) também passa a valer na resolução dos streams\n- Resolução de streams com retentativa limitada e sem estado global compartilhado\n- Repetição garantida em qualquer fila ou playlist\n- Aquecimento do PoToken em segundo plano, sem travar a música\n- Correções diversas e compilação para desktop restaurada',
+    'rel.body.050': 'Anti-bot com PoToken, aviso de verificação, login em destaque para importar playlists, repetição de fila garantida e mais.',
+    'rel.body.030': 'Reprodutor redesenhado, visualizador de capa em tela cheia, miniplayer flutuante com onda, estatísticas reais e mais.',
+    'rel.body.020': 'Preview oficial com miniplayer flutuante, RPC do Discord e nova identidade.'
+  }
+};
+
+const OYT_LANGS = ['es', 'en', 'pt'];
+const OYT_LOCALES = { es: 'es-ES', en: 'en-US', pt: 'pt-BR' };
+let OYT_LANG = 'es';
+
+function t(key) {
+  const table = I18N[OYT_LANG] || I18N.es;
+  return (table && table[key]) || I18N.es[key] || key;
+}
+
+class I18nManager {
+  constructor() {
+    this.buttons = Array.from(document.querySelectorAll('.lang-btn'));
+    this.lang = this.detect();
+  }
+
+  detect() {
+    try {
+      const saved = localStorage.getItem('oyt-lang');
+      if (saved && OYT_LANGS.includes(saved)) return saved;
+    } catch (e) { /* modo privado */ }
+
+    const nav = String(navigator.language || navigator.userLanguage || 'es').slice(0, 2).toLowerCase();
+    return OYT_LANGS.includes(nav) ? nav : 'es';
+  }
+
+  init() {
+    this.buttons.forEach(btn => {
+      btn.addEventListener('click', () => this.set(btn.dataset.lang));
+    });
+    this.set(this.lang);
+  }
+
+  set(lang) {
+    if (!OYT_LANGS.includes(lang)) return;
+
+    OYT_LANG = lang;
+    this.lang = lang;
+
+    try { localStorage.setItem('oyt-lang', lang); } catch (e) { /* ignora */ }
+
+    document.documentElement.lang = lang;
+    document.title = t('meta.title');
+
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute('content', t('meta.description'));
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const value = I18N[lang][el.dataset.i18n];
+      if (typeof value === 'string') el.textContent = value;
+    });
+
+    this.buttons.forEach(btn => btn.classList.toggle('is-active', btn.dataset.lang === lang));
+
+    const changelog = document.getElementById('changelog-dialog');
+    if (changelog && changelog.open) loadChangelogContent();
+
+    const versions = document.getElementById('versions-dialog');
+    if (versions && versions.open) loadVersionsList();
+  }
+}
+
 // Función para cargar el changelog
 async function loadChangelogContent() {
   const content = document.getElementById('changelog-content');
   if (!content) return;
 
-  content.innerHTML = '<div class="loading-indicator" role="status" aria-label="Cargando"><div class="m3e-loading-indicator"><span class="m3e-loading-indicator__dot"></span><span class="m3e-loading-indicator__dot"></span><span class="m3e-loading-indicator__dot"></span></div></div>';
+  content.innerHTML = `<div class="loading-indicator" role="status" aria-label="${t('loading')}"><div class="m3e-loading-indicator"><span class="m3e-loading-indicator__dot"></span><span class="m3e-loading-indicator__dot"></span><span class="m3e-loading-indicator__dot"></span></div></div>`;
 
   try {
-    const data = { published_at: new Date().toISOString(), body: '### Velqi Luna 0.3.0 — Preview\n\n- Reproductor rediseñado a pantalla completa con portada expandida\n- Visor de portada a pantalla completa al tocar el arte\n- Miniplayer flotante despegado de la barra de navegación con onda de progreso\n- Barra de navegación flotante con solo iconos\n- Nueva pantalla de Biblioteca con accesos rápidos\n- Géneros con tarjetas de colores en cuadrícula de 2\n- Estadísticas reales: tiempo escuchado, tiempo en la app, canciones más escuchadas con número de veces y desglose por día\n- Botones de regreso en toda la biblioteca\n- Corrección del cierre de la app al volver atrás desde un artista\n- Acerca de rediseñado con logo animado' };
-    const date = new Date(data.published_at).toLocaleDateString('es-ES', {
+    const data = { published_at: new Date().toISOString(), body: t('changelog.body') };
+    const date = new Date(data.published_at).toLocaleDateString(OYT_LOCALES[OYT_LANG] || 'es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
 
     // Verificar si marked está disponible
-    const markdownContent = typeof marked !== 'undefined' ? marked.parse(data.body || 'Sin notas disponibles.') : data.body || 'Sin notas disponibles.';
+    const notes = data.body || t('dialog.noNotes');
+    const markdownContent = typeof marked !== 'undefined' ? marked.parse(notes) : notes;
 
     content.innerHTML = `
             <div class="changelog-meta">
@@ -579,7 +914,7 @@ async function loadChangelogContent() {
             <div class="markdown-body">${markdownContent}</div>
         `;
   } catch (error) {
-    content.innerHTML = `<p style="color: #cf6679; padding: 16px;">Error al cargar cambios: ${error.message}</p>`;
+    content.innerHTML = `<p style="color: #cf6679; padding: 16px;">${t('dialog.errorChanges')}: ${error.message}</p>`;
   }
 }
 
@@ -588,28 +923,36 @@ async function loadVersionsList() {
   const list = document.getElementById('versions-list');
   if (!list) return;
 
-  list.innerHTML = '<div class="loading-indicator" role="status" aria-label="Cargando"><div class="m3e-loading-indicator"><span class="m3e-loading-indicator__dot"></span><span class="m3e-loading-indicator__dot"></span><span class="m3e-loading-indicator__dot"></span></div></div>';
+  list.innerHTML = `<div class="loading-indicator" role="status" aria-label="${t('loading')}"><div class="m3e-loading-indicator"><span class="m3e-loading-indicator__dot"></span><span class="m3e-loading-indicator__dot"></span><span class="m3e-loading-indicator__dot"></span></div></div>`;
 
   try {
     const releases = [{
-      tag_name: '0.3.0',
+      tag_name: '0.5.0',
       published_at: new Date().toISOString(),
-      name: 'Velqi Luna 0.3.0',
-      body: 'Reproductor rediseñado, visor de portada, miniplayer flotante con onda, estadísticas reales y más.'
+      name: 'OpenYTMusic 0.5.0',
+      body: t('rel.body.050'),
+      assets: [{ browser_download_url: 'OpenYTMusic-0.5.0.apk' }]
+    }, {
+      tag_name: '0.3.0',
+      published_at: '2026-09-09T12:00:00Z',
+      name: 'OpenYTMusic 0.3.0',
+      body: t('rel.body.030'),
+      assets: [{ browser_download_url: 'OpenYTMusic-0.3.0.apk' }]
     }, {
       tag_name: '0.2.0',
       published_at: '2026-09-08T12:00:00Z',
-      name: 'Velqi Luna 0.2.0',
-      body: 'Preview oficial con miniplayer flotante, RPC de Discord y branding nuevo.'
+      name: 'OpenYTMusic 0.2.0',
+      body: t('rel.body.020'),
+      assets: [{ browser_download_url: 'OpenYTMusic-0.2.0.apk' }]
     }];
 
     if (releases.length === 0) {
-      list.innerHTML = '<p class="text-on-surface-variant" style="padding: 16px;">No hay versiones disponibles.</p>';
+      list.innerHTML = `<p class="text-on-surface-variant" style="padding: 16px;">${t('dialog.noVersions')}</p>`;
       return;
     }
 
     list.innerHTML = releases.map((release, index) => {
-      const date = new Date(release.published_at).toLocaleDateString('es-ES', {
+      const date = new Date(release.published_at).toLocaleDateString(OYT_LOCALES[OYT_LANG] || 'es-ES', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -623,48 +966,28 @@ async function loadVersionsList() {
                     <div class="version-list-info">
                         <div class="version-meta-row">
                             <span class="version-tag">${release.tag_name}</span>
-                            ${isLatest ? '<span class="version-chip version-chip--latest">Más reciente</span>' : ''}
+                            ${isLatest ? `<span class="version-chip version-chip--latest">${t('dialog.latest')}</span>` : ''}
                         </div>
                         <span class="version-date">${date}</span>
                     </div>
                     <a href="${downloadUrl}" class="version-dl-btn" download>
                         <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
-                        Descargar
+                        ${t('dialog.download')}
                     </a>
                 </div>
             `;
     }).join('');
 
   } catch (error) {
-    list.innerHTML = `<p style="color: #cf6679; padding: 16px;">Error al cargar versiones: ${error.message}</p>`;
+    list.innerHTML = `<p style="color: #cf6679; padding: 16px;">${t('dialog.errorVersions')}: ${error.message}</p>`;
   }
 }
-
-// Diagnóstico del LanguageManager
-document.addEventListener('DOMContentLoaded', function () {
-  const langBtn = document.getElementById('languageSelector');
-  const langDialog = document.getElementById('language-dialog');
-
-  console.log('Botón idioma:', langBtn);
-  console.log('Diálogo idioma:', langDialog);
-
-  if (langBtn && langDialog) {
-    // Forzar el evento manualmente
-    langBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      console.log('Botón clickeado - abriendo diálogo');
-      langDialog.showModal();
-    });
-  } else {
-    console.error('No se encontraron los elementos de idioma');
-  }
-});
 
 // ============================================
 // OBTENER DATOS REALES DE GITHUB API (VERSIÓN MEJORADA) (Contribuidores.html)
 // ============================================
 const REPO_OWNER = 'root-leo';
-const REPO_NAME = 'Velqi-Luna';
+const REPO_NAME = 'OpenYTMusic';
 
 async function fetchGitHubStats() {
   try {
@@ -835,7 +1158,7 @@ async function fetchLatestActivity() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Sección de stats/contribuidores/actividad removida de la landing Velqi
+  // Sección de stats/contribuidores/actividad removida de la landing OpenYTMusic
   if (document.getElementById('stats-stars')) fetchGitHubStats();
   if (document.getElementById('contributors-grid')) fetchContributors();
   if (document.getElementById('latest-activity')) fetchLatestActivity();
