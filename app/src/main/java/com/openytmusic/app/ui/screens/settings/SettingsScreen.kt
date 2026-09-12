@@ -237,7 +237,7 @@ fun SettingsScreen(
                     }
                 },
                 onClick = {
-                    uriHandler.openUri("https://velqi.netlify.app")
+                    uriHandler.openUri(BuildConfig.SITE_URL)
                 }
             )
         }

@@ -1,5 +1,6 @@
 package com.openytmusic.app.utils
 
+import com.openytmusic.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -15,8 +16,20 @@ object Updater {
     var lastCheckTime = -1L
         private set
 
-    // Manifiesto de versiones alojado en la web oficial (Netlify).
-    private const val VERSION_URL = "https://velqi.netlify.app/version.json"
+    // Manifiesto de versiones alojado en la web oficial (Netlify). Sale de BuildConfig para
+    // que el dominio viva en un solo sitio: si este apunta a otro host que el de la web, el
+    // chequeo devuelve 404 y la app se queda sin avisar de actualizaciones para siempre.
+    private val VERSION_URL get() = "${BuildConfig.SITE_URL}/version.json"
+
+    /**
+     * El manifiesto puede traer el APK como ruta relativa (`OpenYTMusic-0.5.0.apk`), que es lo
+     * comodo para publicar la web en cualquier dominio. Un `ACTION_VIEW` con una URI relativa no
+     * abre nada, asi que aqui se completa contra la base del manifiesto.
+     */
+    private fun resolveApkUrl(value: String): String = when {
+        value.startsWith("http://") || value.startsWith("https://") -> value
+        else -> "${BuildConfig.SITE_URL}/${value.trimStart('/')}"
+    }
 
     /**
      * Solo hay actualizacion si la version remota es estrictamente MAYOR
@@ -45,7 +58,7 @@ object Updater {
                 val json = JSONObject(body)
                 UpdateInfo(
                     versionName = json.getString("version"),
-                    apkUrl = json.getString("apkUrl"),
+                    apkUrl = resolveApkUrl(json.getString("apkUrl")),
                 )
             } finally {
                 connection.disconnect()

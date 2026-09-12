@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.openytmusic.app.BuildConfig
 import com.openytmusic.app.rpc.rpc.VelqiRPC
 import com.openytmusic.app.LocalPlayerAwareWindowInsets
 import com.openytmusic.app.LocalPlayerConnection
@@ -297,12 +298,12 @@ fun RichPresence(
 
             OutlinedButton(
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://velqi.netlify.app"))
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.SITE_URL))
                     context.startActivity(intent)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Visit Velqi")
+                Text("Visit OpenYTMusic")
             }
         }
     }

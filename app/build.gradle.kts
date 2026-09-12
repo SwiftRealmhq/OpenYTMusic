@@ -28,6 +28,10 @@ android {
         versionCode = 31
         versionName = "0.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Unica fuente de verdad del sitio oficial: de aqui salen el chequeo de
+        // actualizaciones (Updater) y los enlaces "visitar la web". Si algun dia cambia
+        // el dominio, se cambia SOLO esta linea.
+        buildConfigField("String", "SITE_URL", "\"https://openytmusic.netlify.app\"")
     }
     buildTypes {
         release {
