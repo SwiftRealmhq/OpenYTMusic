@@ -933,12 +933,9 @@ async function loadVersionsList() {
       body: t('rel.body.050'),
       assets: [{ browser_download_url: 'OpenYTMusic-0.5.0.apk' }]
     }, {
-      tag_name: '0.3.0',
-      published_at: '2026-09-09T12:00:00Z',
-      name: 'OpenYTMusic 0.3.0',
-      body: t('rel.body.030'),
-      assets: [{ browser_download_url: 'OpenYTMusic-0.3.0.apk' }]
-    }, {
+      // La 0.3.0 salio de la lista a proposito: su APK ya no esta en el sitio, asi que
+      // ofrecerla solo daba un boton de descarga roto. Si se vuelve a subir el archivo,
+      // se restaura esta fila.
       tag_name: '0.2.0',
       published_at: '2026-09-08T12:00:00Z',
       name: 'OpenYTMusic 0.2.0',
