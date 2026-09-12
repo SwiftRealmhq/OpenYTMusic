@@ -276,5 +276,5 @@
     <string name="discord_information">OpenYTMusic bruker OpenYTMusic for å stille inn statusen på Discord-kontoen din. Dette innebærer bruk ave Discord Gateway-portneren, som kan anses som et brudd på Discords tjenestevilkår. Det finnes dog ingen kjente tilfelle av suspenderte brukerkonter på denne grunnen. Bruk på egen risiko. \n \nOpenYTMusic henter bare inn symbolet ditt, og alt annet blir lagret lokalt.</string>
     <string name="preview">Forhåndsvisning</string>
     <string name="about">Om</string>
-    <string name="revived_description">Luna er en offisiell YouTube Music-klient drevet av et privat API. Alt innhold tilhører skaperne og spilles av som det er. Siden dette er et prosjekt som vedlikeholdes av én person, kan feil oppstå uten forvarsel; i så fall, vent på en oppdatering. — Leo</string>
+    <string name="revived_description">OpenYTMusic er en offisiell YouTube Music-klient drevet av et privat API. Alt innhold tilhører skaperne og spilles av som det er. Siden dette er et prosjekt som vedlikeholdes av én person, kan feil oppstå uten forvarsel; i så fall, vent på en oppdatering. — Leo</string>
 </resources>

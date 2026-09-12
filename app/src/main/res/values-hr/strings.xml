@@ -288,5 +288,5 @@
     <string name="use_login_for_browse">Koristi prijavu za pregledavanje sadržaja</string>
     <string name="use_login_for_browse_desc">Ovo može utjecati na sadržaj koji vidiš i, na primjer, prikazuje samo premium albume ako si prijavljen/a s Premium računom</string>
     <string name="action_login">Prijavi se</string>
-    <string name="revived_description">Luna je službeni klijent za YouTube Music kojeg pokreće privatni API. Sav sadržaj pripada njegovim autorima i reproducira se onakav kakav jest. Budući da je riječ o projektu kojeg održava jedna osoba, pogreške se mogu pojaviti bez prethodne najave; ako se to dogodi, pričekajte ažuriranje. — Leo</string>
+    <string name="revived_description">OpenYTMusic je službeni klijent za YouTube Music kojeg pokreće privatni API. Sav sadržaj pripada njegovim autorima i reproducira se onakav kakav jest. Budući da je riječ o projektu kojeg održava jedna osoba, pogreške se mogu pojaviti bez prethodne najave; ako se to dogodi, pričekajte ažuriranje. — Leo</string>
 </resources>

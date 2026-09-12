@@ -41,5 +41,5 @@
     <string name="filter_albums">Albumi</string>
     <string name="filter_artists">Izvajalci</string>
     <string name="filter_playlists">Seznami predvajanja</string>
-    <string name="revived_description">Luna je uradni odjemalec YouTube Music, ki ga poganja zasebni API. Vsa vsebina pripada njenim ustvarjalcem in se predvaja takšna, kot je. Ker projekt vzdržuje ena oseba, lahko pride do napak brez predhodnega obvestila; če se to zgodi, počakajte na posodobitev. — Leo</string>
+    <string name="revived_description">OpenYTMusic je uradni odjemalec YouTube Music, ki ga poganja zasebni API. Vsa vsebina pripada njenim ustvarjalcem in se predvaja takšna, kot je. Ker projekt vzdržuje ena oseba, lahko pride do napak brez predhodnega obvestila; če se to zgodi, počakajte na posodobitev. — Leo</string>
 </resources>

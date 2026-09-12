@@ -297,5 +297,5 @@
     <string name="new_version_available">Nová verzia je dostupná</string>
     <string name="translation_models">Prekladové modely</string>
     <string name="clear_translation_models">Jasné modely prekladu</string>
-    <string name="revived_description">Luna je oficiálny klient YouTube Music poháňaný súkromným API. Všetok obsah patrí jeho tvorcom a prehráva sa taký, aký je. Keďže projekt udržiava jedna osoba, môžu sa vyskytnúť chyby bez predchádzajúceho upozornenia; ak áno, počkajte na aktualizáciu. — Leo</string>
+    <string name="revived_description">OpenYTMusic je oficiálny klient YouTube Music poháňaný súkromným API. Všetok obsah patrí jeho tvorcom a prehráva sa taký, aký je. Keďže projekt udržiava jedna osoba, môžu sa vyskytnúť chyby bez predchádzajúceho upozornenia; ak áno, počkajte na aktualizáciu. — Leo</string>
 </resources>

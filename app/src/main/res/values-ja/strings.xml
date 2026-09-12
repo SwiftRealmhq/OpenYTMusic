@@ -270,5 +270,5 @@
     <string name="use_login_for_browse_desc">例えば、Premiumのアカウントでログインした時に、Premium限定のアルバムが表示されるようになります</string>
     <string name="use_login_for_browse">表示されるコンテンツをアカウントと結び付ける</string>
     <string name="action_login">ログイン</string>
-    <string name="revived_description">Luna はプライベート API を利用した YouTube Music の公式クライアントです。すべてのコンテンツはその作成者に帰属し、そのまま再生されます。個人でメンテナンスされているプロジェクトのため、予告なくエラーが発生する可能性があります。その場合はアップデートをお待ちください。— Leo</string>
+    <string name="revived_description">OpenYTMusic はプライベート API を利用した YouTube Music の公式クライアントです。すべてのコンテンツはその作成者に帰属し、そのまま再生されます。個人でメンテナンスされているプロジェクトのため、予告なくエラーが発生する可能性があります。その場合はアップデートをお待ちください。— Leo</string>
 </resources>

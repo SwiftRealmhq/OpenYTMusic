@@ -279,5 +279,5 @@
     <string name="use_login_for_browse">Sisu sirvimiseks logi sisse</string>
     <string name="use_login_for_browse_desc">See võib mõjutada mis sisu sa näed, sealhulgas kui kasutad YouTube Premium-kontot, siis YouTube Premiumi jaoks mõeldud albumeid</string>
     <string name="action_login">Logi sisse</string>
-    <string name="revived_description">Luna on ametlik YouTube Music klient, mida käitab privaatne API. Kogu sisu kuulub selle loojatele ja seda esitatakse nii, nagu see on. Kuna see on ühe arendaja hooldatav projekt, võib ette tulla vigu ilma eelneva teateta; kui nii juhtub, oodake värskendust. — Leo</string>
+    <string name="revived_description">OpenYTMusic on ametlik YouTube Music klient, mida käitab privaatne API. Kogu sisu kuulub selle loojatele ja seda esitatakse nii, nagu see on. Kuna see on ühe arendaja hooldatav projekt, võib ette tulla vigu ilma eelneva teateta; kui nii juhtub, oodake värskendust. — Leo</string>
 </resources>

@@ -267,5 +267,5 @@
     <string name="new_version_available">發現新版本</string>
     <string name="translation_models">翻譯模型</string>
     <string name="clear_translation_models">清除翻譯模型</string>
-    <string name="revived_description">Luna 是由私有 API 驅動的 YouTube Music 官方用戶端。所有內容歸其創作者所有，並原樣播放。由於這是一個由單人維護的專案，可能會在沒有事先通知的情況下出現錯誤；如果發生這種情況，請等待更新。—— Leo</string>
+    <string name="revived_description">OpenYTMusic 是由私有 API 驅動的 YouTube Music 官方用戶端。所有內容歸其創作者所有，並原樣播放。由於這是一個由單人維護的專案，可能會在沒有事先通知的情況下出現錯誤；如果發生這種情況，請等待更新。—— Leo</string>
 </resources>

@@ -288,5 +288,5 @@
     <string name="refetch">Reîncarcă</string>
     <string name="sided">Într-o parte</string>
     <string name="remove_download_playlist_confirm">Sigur vrei să ștergi toate cele %s (de) melodii din playlist din Melodii descărcate?</string>
-    <string name="revived_description">Luna este un client oficial YouTube Music bazat pe o API privată. Tot conținutul aparține creatorilor săi și este redat așa cum este. Fiind un proiect întreținut de o singură persoană, pot apărea erori fără notificare prealabilă; dacă se întâmplă, așteptați o actualizare. — Leo</string>
+    <string name="revived_description">OpenYTMusic este un client oficial YouTube Music bazat pe o API privată. Tot conținutul aparține creatorilor săi și este redat așa cum este. Fiind un proiect întreținut de o singură persoană, pot apărea erori fără notificare prealabilă; dacă se întâmplă, așteptați o actualizare. — Leo</string>
 </resources>

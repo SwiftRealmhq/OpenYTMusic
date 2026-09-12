@@ -270,5 +270,5 @@
     <string name="use_login_for_browse">Đăng nhập để xem nội dung</string>
     <string name="use_login_for_browse_desc">Điều này có thể ảnh hưởng đến nội dung bạn nhìn thấy, ví dụ như hiện những album dành riêng cho premium nếu bạn đăng nhập với tài khoản Premium</string>
     <string name="action_login">Đăng nhập</string>
-    <string name="revived_description">Luna là ứng dụng khách chính thức của YouTube Music chạy bằng API riêng. Toàn bộ nội dung thuộc về người sáng tạo và được phát nguyên trạng. Vì đây là dự án do một người duy trì, lỗi có thể xảy ra mà không báo trước; nếu vậy, vui lòng chờ bản cập nhật. — Leo</string>
+    <string name="revived_description">OpenYTMusic là ứng dụng khách chính thức của YouTube Music chạy bằng API riêng. Toàn bộ nội dung thuộc về người sáng tạo và được phát nguyên trạng. Vì đây là dự án do một người duy trì, lỗi có thể xảy ra mà không báo trước; nếu vậy, vui lòng chờ bản cập nhật. — Leo</string>
 </resources>

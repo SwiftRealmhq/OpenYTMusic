@@ -110,7 +110,7 @@ fun MiniPlayer(
                     .padding(11.dp)
             ) {
                 Image(
-                    painter = painterResource(R.drawable.luna_logo),
+                    painter = painterResource(R.drawable.openytmusic_logo),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize()
                 )

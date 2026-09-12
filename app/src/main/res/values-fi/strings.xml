@@ -279,5 +279,5 @@
     <string name="new_version_available">Uusi versio saatavilla</string>
     <string name="translation_models">Käännösmallit</string>
     <string name="clear_translation_models">Tyhjennä käännösmallit</string>
-    <string name="revived_description">Luna on virallinen YouTube Music -asiakasohjelma, jota käyttää yksityinen API. Kaikki sisältö kuuluu sen tekijöille ja se toistetaan sellaisenaan. Koska projekti on yhden kehittäjän ylläpitämä, virheitä voi esiintyä ilman ennakkoilmoitusta; jos näin käy, odota päivitystä. — Leo</string>
+    <string name="revived_description">OpenYTMusic on virallinen YouTube Music -asiakasohjelma, jota käyttää yksityinen API. Kaikki sisältö kuuluu sen tekijöille ja se toistetaan sellaisenaan. Koska projekti on yhden kehittäjän ylläpitämä, virheitä voi esiintyä ilman ennakkoilmoitusta; jos näin käy, odota päivitystä. — Leo</string>
 </resources>

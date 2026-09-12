@@ -79,9 +79,10 @@ fun AboutScreen(
                     scaleIn(initialScale = 0.7f, animationSpec = tween(durationMillis = 700))
         ) {
             Image(
-                painter = painterResource(R.drawable.luna_logo),
+                // Logo oficial en PNG puro (con transparencia), tal cual nos lo dieron.
+                painter = painterResource(R.drawable.openytmusic_logo),
                 contentDescription = Kernel.APP_NAME,
-                modifier = Modifier.size(120.dp)
+                modifier = Modifier.size(132.dp)
             )
         }
 

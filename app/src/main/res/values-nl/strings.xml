@@ -279,5 +279,5 @@
     <string name="use_login_for_browse_desc">Dit kan invloed hebben op welke inhoud u ziet en laat bijvoorbeeld alleen premium albums zien als u bent ingelogd met een Premium account</string>
     <string name="use_login_for_browse">Gebruik login om inhoud te bekijken</string>
     <string name="action_login">Inloggen</string>
-    <string name="revived_description">Luna is een officiële YouTube Music-client die wordt aangedreven door een privé-API. Alle inhoud is van de makers en wordt weergegeven zoals die is. Omdat dit een project is dat door één persoon wordt onderhouden, kunnen er fouten optreden zonder voorafgaande kennisgeving; wacht in dat geval op een update. — Leo</string>
+    <string name="revived_description">OpenYTMusic is een officiële YouTube Music-client die wordt aangedreven door een privé-API. Alle inhoud is van de makers en wordt weergegeven zoals die is. Omdat dit een project is dat door één persoon wordt onderhouden, kunnen er fouten optreden zonder voorafgaande kennisgeving; wacht in dat geval op een update. — Leo</string>
 </resources>

@@ -288,5 +288,5 @@
     <string name="enable_discord_rpc">Abilita Rich Presence</string>
     <string name="dismiss">Ignorare</string>
     <string name="action_login">Accedi</string>
-    <string name="revived_description">Luna è un client ufficiale di YouTube Music basato su un\'API privata. Tutti i contenuti appartengono ai loro creatori e vengono riprodotti così come sono. Trattandosi di un progetto mantenuto da una sola persona, possono verificarsi errori senza preavviso; in tal caso, attendi un aggiornamento. — Leo</string>
+    <string name="revived_description">OpenYTMusic è un client ufficiale di YouTube Music basato su un\'API privata. Tutti i contenuti appartengono ai loro creatori e vengono riprodotti così come sono. Trattandosi di un progetto mantenuto da una sola persona, possono verificarsi errori senza preavviso; in tal caso, attendi un aggiornamento. — Leo</string>
 </resources>

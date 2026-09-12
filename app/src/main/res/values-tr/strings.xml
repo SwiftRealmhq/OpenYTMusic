@@ -279,5 +279,5 @@
     <string name="use_login_for_browse">İçerikleri görmek için Giriş yap\'ı kullanın</string>
     <string name="use_login_for_browse_desc">Bu gördüğünüz içerikleri etkileyebilir ve örnek olarak Premium\'a özel içerikleri Premium\'a sahip bir hesapla giriş yaptıysanız size sunabilir</string>
     <string name="action_login">Giriş Yap</string>
-    <string name="revived_description">Luna, özel bir API tarafından desteklenen resmi bir YouTube Music istemcisidir. Tüm içerik yaratıcılarına aittir ve olduğu gibi oynatılır. Tek bir kişi tarafından sürdürülen bir proje olduğundan, önceden bildirim olmadan hatalar oluşabilir; böyle bir durumda lütfen bir güncelleme bekleyin. — Leo</string>
+    <string name="revived_description">OpenYTMusic, özel bir API tarafından desteklenen resmi bir YouTube Music istemcisidir. Tüm içerik yaratıcılarına aittir ve olduğu gibi oynatılır. Tek bir kişi tarafından sürdürülen bir proje olduğundan, önceden bildirim olmadan hatalar oluşabilir; böyle bir durumda lütfen bir güncelleme bekleyin. — Leo</string>
 </resources>

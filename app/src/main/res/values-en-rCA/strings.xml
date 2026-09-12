@@ -2,5 +2,5 @@
 <resources>
     <string name="forgotten_favorites">Forgotten favourites</string>
     <string name="center">Centre</string>
-    <string name="revived_description">Luna is an official YouTube Music client powered by a private API. All content belongs to its creators and is streamed as-is. As a single-developer project, errors may occur without prior notice; if so, please wait for an update. — Leo</string>
+    <string name="revived_description">OpenYTMusic is an official YouTube Music client powered by a private API. All content belongs to its creators and is streamed as-is. As a single-developer project, errors may occur without prior notice; if so, please wait for an update. — Leo</string>
 </resources>

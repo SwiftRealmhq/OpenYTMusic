@@ -278,5 +278,5 @@
     <string name="listen_history">Historial de reproducció</string>
     <string name="pause_listen_history">Atura la recopliació del historial de reproducció</string>
     <string name="clear_listen_history">Neteja l\'historial de reproducció</string>
-    <string name="revived_description">Luna és un client oficial de YouTube Music impulsat per una API privada. Tot el contingut pertany als seus creadors i es reprodueix tal com és. Com que és un projecte mantingut per una sola persona, poden produir-se errors sense avís previ; si és el cas, espera una actualització. — Leo</string>
+    <string name="revived_description">OpenYTMusic és un client oficial de YouTube Music impulsat per una API privada. Tot el contingut pertany als seus creadors i es reprodueix tal com és. Com que és un projecte mantingut per una sola persona, poden produir-se errors sense avís previ; si és el cas, espera una actualització. — Leo</string>
 </resources>

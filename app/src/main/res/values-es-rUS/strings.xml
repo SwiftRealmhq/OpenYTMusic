@@ -76,7 +76,7 @@
     <string name="remove_download">Eliminar descarga</string>
     <string name="import_playlist">Importar lista de reproducción</string>
     <string name="import_from_ym_title">Importar de YouTube Music</string>
-    <string name="import_from_ym_desc">Trae tus playlists y tus Me gusta a Luna</string>
+    <string name="import_from_ym_desc">Trae tus playlists y tus Me gusta a OpenYTMusic</string>
     <string name="import_title">Importar de YouTube Music</string>
     <string name="import_login_required">No iniciaste sesión</string>
     <string name="import_login_hint">Accedé con tu cuenta de Google para importar tus playlists y Me gusta de YouTube Music.</string>
@@ -323,5 +323,5 @@
     <string name="clear_translation_models">Modelos de traducción claros</string>
     <string name="action_like_all">Me gustan todas</string>
     <string name="squiggly">Ondulado</string>
-    <string name="revived_description">Luna es un cliente oficial de YouTube Music impulsado por una API privada. Todo el contenido pertenece a sus creadores y se reproduce tal cual. Al ser un proyecto mantenido por una sola persona, pueden ocurrir errores sin previo aviso; de ser así, espera a una actualización. — Leo</string>
+    <string name="revived_description">OpenYTMusic es un cliente oficial de YouTube Music impulsado por una API privada. Todo el contenido pertenece a sus creadores y se reproduce tal cual. Al ser un proyecto mantenido por una sola persona, pueden ocurrir errores sin previo aviso; de ser así, espera a una actualización. — Leo</string>
 </resources>

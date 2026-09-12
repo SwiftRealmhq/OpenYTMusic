@@ -1,14 +1,20 @@
-# 🌙 Velqi Luna
+<div align="center">
 
-> 🎉 **Felicidades.** Si estás leyendo esto es porque eres un **contribuidor autorizado** de Velqi Luna.
-> Si eres el creador original, ignora este mensaje.
+<img src="assets/OpenYTMusic-PNGPUROpng" alt="OpenYTMusic" width="160"/>
 
-> **v0.4.1** · Repositorio **privado** · Código **cerrado**
-> Autor: **Leo** · Acceso restringido únicamente al creador y contribuidores autorizados.
+# OpenYTMusic
 
-> ⚠️ **CONFIDENCIAL** — Este repositorio contiene el código fuente completo de Velqi Luna. El acceso está
-> limitado por invitación explícita del autor. Queda prohibida la copia, distribución, publicación,
-> fork o divulgación de cualquier parte del código, total o parcial, sin autorización escrita previa.
+**v0.5.0** · Cliente de YouTube Music · Material Design 3
+
+Desarrollado por: Leo
+
+</div>
+
+---
+
+> ⚠️ **CONFIDENCIAL** — Repositorio **privado** de código **cerrado**. El acceso está limitado
+> por invitación explícita del autor. Queda prohibida la copia, distribución, publicación, fork
+> o divulgación de cualquier parte del código, total o parcial, sin autorización escrita previa.
 
 ---
 
@@ -17,31 +23,44 @@
 | Capa | Tecnología |
 |---|---|
 | Lenguaje | Kotlin (JVM target 17) |
-| UI | Jetpack Compose + Material Design 3 (dynamic color) |
+| UI | Jetpack Compose + Material Design 3 |
 | Reproducción | AndroidX Media3 (ExoPlayer) |
 | Persistencia | Room + DataStore (Preferences) |
 | Red | Ktor client + OkHttp |
 | Extracción de streams | Cliente InnerTube propio (rotación de clientes, streams muxed) |
 | Letras | LrcLib + KuGou + YouTube transcript (con fallback en cascada) |
 | RPC | Discord Rich Presence (módulo `discord-rpc`) |
+| Tema | Rojo YouTube Music (`#FF0000`), acento saturado, dark puro |
 | minSdk / targetSdk / compileSdk | 26 / 35 / 35 |
 
 ## Arquitectura de módulos
 
 ```
-velqi/
+OpenYTMusic/
 ├── app/                      # Módulo principal (UI, navegación, reproductor, servicios)
 ├── innertube/                # Cliente InnerTube: parseo de respuestas de YouTube Music
 ├── lrclib/                   # Cliente de LrcLib (letras sincronizadas)
 ├── kugou/                    # Cliente de KuGou (letras)
 ├── discord-rpc/              # Gateway de Discord (Rich Presence)
-├── material-color-utilities/ # Utilidades de color Material (tema dinámico)
+├── material-color-utilities/ # Utilidades de color Material (tema)
 └── desktop/                  # Variante de escritorio (experimental)
 ```
 
 El módulo `app` depende de los módulos de extracción a través de `com.openytmusic.app.innertube`
 y expone la lógica de negocio vía ViewModels (`com.openytmusic.app.viewmodels`). La capa de
 reproducción vive en `com.openytmusic.app.playback` (servicio de media, colas, radios).
+
+## Funciones
+
+- Búsqueda, reproducción y colas de YouTube Music (canciones, álbumes, artistas, playlists)
+- **Importar playlists y "Me gusta" desde la cuenta real de YouTube Music** (login con captura
+  manual de sesión: el usuario decide qué cuenta conectar)
+- Shuffle determinista: al activarlo, el salto aleatorio ocurre al terminar la pista o avanzar
+- Temporizador de sueño: barra de tiempo libre, "detener al terminar la canción" con contador real
+- Letras sincronizadas (LrcLib / KuGou / transcript) y sin sincronizar
+- Discord Rich Presence con timestamp tipo Spotify
+- Descargas offline (Selene), colas, radios y mezcla infinita
+- Tema oscuro puro con acento rojo vivo y color dinámico opcional desde la portada
 
 ## Requisitos de build
 
@@ -71,7 +90,7 @@ Salidas:
 
 ## API (YouTube Music / InnerTube)
 
-Velqi Luna no depende de servicios de terceros para el contenido: se comunica directamente con
+OpenYTMusic no depende de servicios de terceros para el contenido: se comunica directamente con
 el **cliente InnerTube** de YouTube Music — la misma API interna que usa la aplicación oficial.
 Toda la implementación vive en el módulo `innertube` (`com.openytmusic.app.innertube`).
 
@@ -113,17 +132,16 @@ La estrategia de testing es conservadora: los cambios deben validarse en disposi
    - Implementar el cambio siguiendo el estilo existente (Kotlin, Compose, strings en `values/`
      y `values-es/`).
    - Verificar compilación y linter antes del push.
-   - Abrir **Pull Request** hacia `main` (push directo a `main` está bloqueado).
+   - Abrir **Pull Request** hacia `main`.
 3. **Política del repo**:
-   - `main` está **protegida**: requiere revisión y PR aprobado; sin force push.
    - Prohibido subir APKs, keystores, tokens o secretos (el `.gitignore` los excluye).
    - Prohibido copiar o divulgar el código fuera del repo.
 4. **Reporting**: los bugs se describen en un issue con pasos de reproducción, build y
-   logs de `logcat` (`adb logcat` filtrando por `velqi`).
+   logs de `logcat` (`adb logcat` filtrando por `openytmusic`).
 
 ## Estado
 
-- **Versión**: 0.4.1 (release universal, firmada)
+- **Versión**: 0.5.0
 - **Visibilidad**: privado — no público, no forkable, sin mirrors
 - **Propósito del repo**: copia de seguridad en la nube y colaboración cerrada
 - **Licencia**: código cerrado — todos los derechos reservados por Leo

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Icono adaptativo con fondo transparente: el logo PNG flota sin caja,
-     sin circulo y sin relleno del launcher. -->
+<!-- Icono adaptativo de OpenYTMusic: fondo negro solido y la luna roja
+     (PNG puro) centrada dentro de la zona segura del launcher. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
     <foreground android:drawable="@mipmap/ic_launcher_foreground" />

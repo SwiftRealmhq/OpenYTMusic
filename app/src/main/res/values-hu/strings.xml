@@ -279,5 +279,5 @@
     <string name="options">Opciók</string>
     <string name="preview">Előnézet</string>
     <string name="enable_discord_rpc">Rich Presence engedélyezése</string>
-    <string name="revived_description">A Luna a YouTube Music hivatalos kliense, amelyet privát API működtet. Minden tartalom az alkotóié, és úgy kerül lejátszásra, ahogy van. Mivel a projektet egyetlen személy tartja karban, előzetes értesítés nélkül hibák léphetnek fel; ha ez történik, kérjük, várjon egy frissítésre. — Leo</string>
+    <string name="revived_description">A OpenYTMusic a YouTube Music hivatalos kliense, amelyet privát API működtet. Minden tartalom az alkotóié, és úgy kerül lejátszásra, ahogy van. Mivel a projektet egyetlen személy tartja karban, előzetes értesítés nélkül hibák léphetnek fel; ha ez történik, kérjük, várjon egy frissítésre. — Leo</string>
 </resources>

@@ -294,12 +294,8 @@ class MainActivity : ComponentActivity() {
             }
 
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
-            val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
-            val pureBlack by rememberPreference(PureBlackKey, defaultValue = false)
-            val isSystemInDarkTheme = isSystemInDarkTheme()
-            val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
-                if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
-            }
+            // OpenYTMusic es solo dark: el logo rojo siempre calca sobre fondo oscuro.
+            val useDarkTheme = true
             LaunchedEffect(useDarkTheme) {
                 setSystemBarAppearance(useDarkTheme)
             }
@@ -307,7 +303,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(DefaultThemeColor)
             }
 
-            LaunchedEffect(playerConnection, enableDynamicTheme, isSystemInDarkTheme) {
+            LaunchedEffect(playerConnection, enableDynamicTheme) {
                 val playerConnection = playerConnection
                 if (!enableDynamicTheme || playerConnection == null) {
                     themeColor = DefaultThemeColor
@@ -330,7 +326,7 @@ class MainActivity : ComponentActivity() {
 
             LunaTheme(
                 darkTheme = useDarkTheme,
-                pureBlack = pureBlack,
+                pureBlack = false,
                 themeColor = themeColor
             ) {
                 BoxWithConstraints(

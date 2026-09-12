@@ -340,7 +340,7 @@ fun HomeScreen(
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
             item {
-                // Barra superior Velqi Luna: logo + nombre + iconos
+                // Barra superior OpenYTMusic: logo + nombre + iconos
                 // (historial, estadisticas, notificaciones y cuenta).
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -350,9 +350,9 @@ fun HomeScreen(
                         .padding(horizontal = 20.dp, vertical = 6.dp)
                         .animateItem()
                 ) {
-                    // Logo PNG puro de Velqi Luna a la izquierda
+                    // Logo PNG puro de OpenYTMusic a la izquierda
                     Image(
-                        painter = painterResource(R.drawable.velqi_luna),
+                        painter = painterResource(R.drawable.openytmusic_logo),
                         contentDescription = stringResource(R.string.app_name),
                         modifier = Modifier
                             .height(36.dp)

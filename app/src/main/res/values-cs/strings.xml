@@ -288,5 +288,5 @@
     <string name="use_login_for_browse">Použít účet pro procházení obsahu</string>
     <string name="use_login_for_browse_desc">Může ovlivnit obsah, který se vám zobrazí – při přihlášení například mohou být zobrazena například alba, která jsou dostupná pouze s Premium účtem</string>
     <string name="action_login">Přihlásit se</string>
-    <string name="revived_description">Luna je oficiální klient YouTube Music poháněný soukromým API. Veškerý obsah patří jeho tvůrcům a je přehráván tak, jak je. Vzhledem k tomu, že projekt udržuje jeden vývojář, mohou se bez předchozího upozornění vyskytnout chyby; pokud ano, počkejte na aktualizaci. — Leo</string>
+    <string name="revived_description">OpenYTMusic je oficiální klient YouTube Music poháněný soukromým API. Veškerý obsah patří jeho tvůrcům a je přehráván tak, jak je. Vzhledem k tomu, že projekt udržuje jeden vývojář, mohou se bez předchozího upozornění vyskytnout chyby; pokud ano, počkejte na aktualizaci. — Leo</string>
 </resources>

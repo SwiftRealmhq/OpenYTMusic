@@ -288,5 +288,5 @@
     <string name="use_login_for_browse">Utiliser le compte connecté pour parcourir le contenu</string>
     <string name="use_login_for_browse_desc">Ceci peut influencer le contenu que vous voyez et affiche par exemple les albums Premium si vous êtes connecté avec un compte Premium</string>
     <string name="action_login">Se connecter</string>
-    <string name="revived_description">Luna est un client officiel de YouTube Music propulsé par une API privée. Tout le contenu appartient à ses créateurs et est diffusé tel quel. Étant un projet maintenu par une seule personne, des erreurs peuvent survenir sans préavis ; le cas échéant, veuillez attendre une mise à jour. — Leo</string>
+    <string name="revived_description">OpenYTMusic est un client officiel de YouTube Music propulsé par une API privée. Tout le contenu appartient à ses créateurs et est diffusé tel quel. Étant un projet maintenu par une seule personne, des erreurs peuvent survenir sans préavis ; le cas échéant, veuillez attendre une mise à jour. — Leo</string>
 </resources>

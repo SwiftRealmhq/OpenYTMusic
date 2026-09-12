@@ -270,5 +270,5 @@
     <string name="use_login_for_browse_desc">这可能会影响您看到的内容，例如，如果您使用会员账号登录，则会显示仅会员专辑</string>
     <string name="use_login_for_browse">登录账号浏览内容</string>
     <string name="action_login">登录</string>
-    <string name="revived_description">Luna 是由私有 API 驱动的 YouTube Music 官方客户端。所有内容归其创作者所有，并原样播放。由于这是一个由单人维护的项目，可能会在没有事先通知的情况下出现错误；如果发生这种情况，请等待更新。—— Leo</string>
+    <string name="revived_description">OpenYTMusic 是由私有 API 驱动的 YouTube Music 官方客户端。所有内容归其创作者所有，并原样播放。由于这是一个由单人维护的项目，可能会在没有事先通知的情况下出现错误；如果发生这种情况，请等待更新。—— Leo</string>
 </resources>

@@ -103,7 +103,7 @@
     <string name="remove_download">Remove download</string>
     <string name="import_playlist">Import playlist</string>
     <string name="import_from_ym_title">Import from YouTube Music</string>
-    <string name="import_from_ym_desc">Bring your playlists and liked songs to Luna</string>
+    <string name="import_from_ym_desc">Bring your playlists and liked songs to OpenYTMusic</string>
     <string name="import_title">Import from YouTube Music</string>
     <string name="import_login_required">You are not logged in</string>
     <string name="import_login_hint">Log in with your Google account to import your YouTube Music playlists and liked songs.</string>
@@ -394,7 +394,7 @@
     <string name="app_version">App version</string>
     <string name="revived_by">Revived by Leo</string>
     <string name="what_is_openytmusic">What is OpenYTMusic?</string>
-    <string name="revived_description">Luna is an official YouTube Music client powered by a private API. All content belongs to its creators and is streamed as-is. As a single-developer project, errors may occur without prior notice; if so, please wait for an update. — Leo</string>
+    <string name="revived_description">OpenYTMusic is an official YouTube Music client powered by a private API. All content belongs to its creators and is streamed as-is. As a single-developer project, errors may occur without prior notice; if so, please wait for an update. — Leo</string>
 
     <string name="update_dialog_title">New version available!</string>
     <string name="update_dialog_message">OpenYTMusic %1$s is now available. Download it for free.</string>
