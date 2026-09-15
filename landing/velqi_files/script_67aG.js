@@ -8,8 +8,8 @@ const APP_CONFIG = {
   repositories: {
     android: {
       repo: 'root-leo/OpenYTMusic',
-      currentVersion: '0.5.0',
-      downloadFormat: 'OpenYTMusic-0.5.0.apk',
+      currentVersion: '0.6.1',
+      downloadFormat: 'OpenYTMusic-0.6.1.apk',
       elements: {
         version: 'android-version-badge',
         download: 'android-download-btn',
@@ -621,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
 (async function updateOssVersion() {
   const badge = document.getElementById('oss-version-badge');
   if (!badge) return;
-  badge.textContent = '0.5.0';
+  badge.textContent = '0.6.1';
 })();
 
 
@@ -730,7 +730,8 @@ const I18N = {
     'dialog.errorChanges': 'Error al cargar cambios',
     'dialog.errorVersions': 'Error al cargar versiones',
     'loading': 'Cargando',
-    'changelog.body': '### OpenYTMusic 0.5.0\n\n- Rescate anti-bot con PoToken: la música ya no se corta cuando YouTube pide verificación\n- Aviso en el reproductor cuando aparece una verificación, con acceso directo al inicio de sesión\n- Inicio de sesión de YouTube Music destacado en Ajustes: importa tus playlists y «Me gusta»\n- La sesión firmada (SAPISIDHASH) también cuenta en la resolución de streams\n- Resolución de streams con reintento acotado y sin estado global compartido\n- Bucle de reproducción garantizado en cualquier cola y lista\n- Inicialización del PoToken en segundo plano, sin bloquear la canción\n- Correcciones varias y compilación de escritorio restaurada',
+    'changelog.body': '### OpenYTMusic 0.6.1\n\n- Auditoría de seguridad y fiabilidad: 106 hallazgos revisados, bloque crítico y de prioridad alta corregido\n- Importación de la biblioteca: bucle infinito que podía agotar la memoria al paginar tus playlists\n- La sesión de YouTube ya no se copia a la nube ni viaja entre dispositivos; cerrar sesión borra las cookies de verdad\n- Los registros de depuración ya no se escriben en la versión publicada\n- La reproducción sigue al cerrar la app desde Recientes y la cola no se corrompe al salir\n- Deep links y «compartir» ya funcionan con la app cerrada (antes se perdían)\n- Índices de base de datos que no se creaban, migración reparada\n- Descargas en paralelo sin corrupción de caché y sin páginas duplicadas al cargar más canciones\n- Firma de release sin contraseña por defecto y avisos legales de la licencia GPLv3 al día',
+    'rel.body.061': 'Auditoría completa aplicada: importación segura, sesión protegida, arranque en frío con deep links y correcciones de reproducción.',
     'rel.body.050': 'Anti-bot con PoToken, aviso de verificación, login destacado para importar playlists, bucle de colas garantizado y más.',
     'rel.body.030': 'Reproductor rediseñado, visor de portada, miniplayer flotante con onda, estadísticas reales y más.',
     'rel.body.020': 'Preview oficial con miniplayer flotante, RPC de Discord y branding nuevo.'
@@ -775,7 +776,8 @@ const I18N = {
     'dialog.errorChanges': 'Error loading changes',
     'dialog.errorVersions': 'Error loading versions',
     'loading': 'Loading',
-    'changelog.body': '### OpenYTMusic 0.5.0\n\n- PoToken anti-bot rescue: music no longer stops when YouTube asks for verification\n- In-player notice when a verification appears, with a shortcut to sign in\n- YouTube Music sign-in highlighted in Settings: import your playlists and Likes\n- Signed session (SAPISIDHASH) now also counts when resolving streams\n- Stream resolution with bounded retries and no shared global state\n- Playback loop guaranteed in any queue or playlist\n- PoToken warm-up in the background, without blocking the song\n- Misc fixes and desktop build restored',
+    'changelog.body': '### OpenYTMusic 0.6.1\n\n- Security and reliability audit: 106 findings reviewed, critical and high-priority block fixed\n- Library import: infinite loop that could exhaust memory while paging your playlists\n- Your YouTube session is no longer copied to the cloud or moved between devices; signing out really clears cookies\n- Debug logging is no longer written in the published build\n- Playback keeps going when the app is swiped away and the queue no longer gets corrupted on exit\n- Deep links and sharing now work with the app closed (they used to be dropped)\n- Database indexes that were never created, migration repaired\n- Parallel downloads without cache corruption and no duplicated pages when loading more songs\n- Release signing without a default password and GPLv3 legal notices up to date',
+    'rel.body.061': 'Full audit applied: safe importing, protected session, cold-start deep links and playback fixes.',
     'rel.body.050': 'PoToken anti-bot, verification notice, highlighted sign-in to import playlists, guaranteed queue loop and more.',
     'rel.body.030': 'Redesigned player, full-screen artwork viewer, floating miniplayer with a wave, real stats and more.',
     'rel.body.020': 'Official preview with a floating miniplayer, Discord RPC and new branding.'
@@ -820,7 +822,8 @@ const I18N = {
     'dialog.errorChanges': 'Erro ao carregar as mudanças',
     'dialog.errorVersions': 'Erro ao carregar as versões',
     'loading': 'Carregando',
-    'changelog.body': '### OpenYTMusic 0.5.0\n\n- Resgate anti-bot com PoToken: a música não para mais quando o YouTube pede verificação\n- Aviso no reprodutor quando aparece uma verificação, com atalho para entrar na conta\n- Login do YouTube Music em destaque nas Configurações: importe suas playlists e Curtidas\n- A sessão assinada (SAPISIDHASH) também passa a valer na resolução dos streams\n- Resolução de streams com retentativa limitada e sem estado global compartilhado\n- Repetição garantida em qualquer fila ou playlist\n- Aquecimento do PoToken em segundo plano, sem travar a música\n- Correções diversas e compilação para desktop restaurada',
+    'changelog.body': '### OpenYTMusic 0.6.1\n\n- Auditoria de segurança e confiabilidade: 106 achados revisados, bloco crítico e de alta prioridade corrigido\n- Importação da biblioteca: loop infinito que podia esgotar a memória ao paginar suas playlists\n- Sua sessão do YouTube não é mais copiada para a nuvem nem transferida entre dispositivos; sair da conta apaga os cookies de verdade\n- Os logs de depuração não são mais gravados na versão publicada\n- A reprodução continua ao fechar o app pelos Recentes e a fila não se corrompe ao sair\n- Deep links e compartilhamento agora funcionam com o app fechado (antes se perdiam)\n- Índices de banco de dados que não eram criados, migração reparada\n- Downloads em paralelo sem corrupção de cache e sem páginas duplicadas ao carregar mais músicas\n- Assinatura de release sem senha padrão e avisos legais da licença GPLv3 em dia',
+    'rel.body.061': 'Auditoria completa aplicada: importação segura, sessão protegida, deep links no arranque em frio e correções de reprodução.',
     'rel.body.050': 'Anti-bot com PoToken, aviso de verificação, login em destaque para importar playlists, repetição de fila garantida e mais.',
     'rel.body.030': 'Reprodutor redesenhado, visualizador de capa em tela cheia, miniplayer flutuante com onda, estatísticas reais e mais.',
     'rel.body.020': 'Preview oficial com miniplayer flutuante, RPC do Discord e nova identidade.'
@@ -927,6 +930,12 @@ async function loadVersionsList() {
 
   try {
     const releases = [{
+      tag_name: '0.6.1',
+      published_at: new Date().toISOString(),
+      name: 'OpenYTMusic 0.6.1',
+      body: t('rel.body.061'),
+      assets: [{ browser_download_url: 'OpenYTMusic-0.6.1.apk' }]
+    }, {
       tag_name: '0.5.0',
       published_at: new Date().toISOString(),
       name: 'OpenYTMusic 0.5.0',
