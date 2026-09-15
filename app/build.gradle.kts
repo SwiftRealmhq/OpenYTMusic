@@ -1,5 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
+import java.util.Properties
+
 val isFullBuild: Boolean by rootProject.extra
 
 plugins {
@@ -25,8 +27,8 @@ android {
         applicationId = "com.openytmusic.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 31
-        versionName = "0.5.0"
+        versionCode = 32
+        versionName = "0.6.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Unica fuente de verdad del sitio oficial: de aqui salen el chequeo de
         // actualizaciones (Updater) y los enlaces "visitar la web". Si algun dia cambia
@@ -67,11 +69,28 @@ android {
         create("release") {
             // Keystore de OpenYTMusic (raiz del proyecto, fuera del control de versiones).
             val ksFile = rootProject.file("openytmusic-release.jks")
-            if (ksFile.exists()) {
+            // SIN password por defecto. El valor "publicado" en el README esta
+            // comprometido: firmar con el seria dejar la unica barrera de la cadena de
+            // actualizaciones (la firma) en manos de cualquiera que consiga el .jks.
+            // Se leen del entorno o de local.properties (ignorado por git).
+            val localProps = Properties().apply {
+                rootProject.file("local.properties").takeIf { it.exists() }
+                    ?.inputStream()?.use { load(it) }
+            }
+            val storePass = System.getenv("OYM_STORE_PASSWORD")
+                ?: localProps.getProperty("OYM_STORE_PASSWORD")
+            val keyPass = System.getenv("OYM_KEY_PASSWORD")
+                ?: localProps.getProperty("OYM_KEY_PASSWORD")
+            if (ksFile.exists() && storePass != null && keyPass != null) {
                 storeFile = ksFile
-                storePassword = System.getenv("OYM_STORE_PASSWORD") ?: "OpenYTMusic2026"
+                storePassword = storePass
                 keyAlias = "openytmusic"
-                keyPassword = System.getenv("OYM_KEY_PASSWORD") ?: "OpenYTMusic2026"
+                keyPassword = keyPass
+            } else if (ksFile.exists() && gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }) {
+                throw GradleException(
+                    "Faltan OYM_STORE_PASSWORD / OYM_KEY_PASSWORD para firmar el release. " +
+                        "Exportalas o escribelas en local.properties (no hay valor por defecto)."
+                )
             }
         }
         getByName("debug") {

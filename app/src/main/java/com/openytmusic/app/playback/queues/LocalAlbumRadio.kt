@@ -41,7 +41,9 @@ class LocalAlbumRadio(
             val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
             continuation = nextResult.continuation
             firstTimeLoaded = true
-            return@withContext nextResult.items.subList(albumWithSongs.songs.size, nextResult.items.size).map { it.toMediaItem() }
+            // drop() en vez de subList(): si la respuesta trae menos items que el album
+            // local (pistas no disponibles), subList lanzaba IndexOutOfBoundsException.
+            return@withContext nextResult.items.drop(albumWithSongs.songs.size).map { it.toMediaItem() }
         }
         val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
         continuation = nextResult.continuation

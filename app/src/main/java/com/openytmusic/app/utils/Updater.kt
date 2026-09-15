@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 
 data class UpdateInfo(
@@ -21,14 +22,31 @@ object Updater {
     // chequeo devuelve 404 y la app se queda sin avisar de actualizaciones para siempre.
     private val VERSION_URL get() = "${BuildConfig.SITE_URL}/version.json"
 
+    /** Unico host aceptado como origen del APK (derivado del dominio oficial). */
+    private val officialHost: String?
+        get() = runCatching { URI(BuildConfig.SITE_URL).host }.getOrNull()
+
     /**
-     * El manifiesto puede traer el APK como ruta relativa (`OpenYTMusic-0.5.0.apk`), que es lo
+     * El manifiesto puede traer el APK como ruta relativa (`OpenYTMusic-0.6.1.apk`), que es lo
      * comodo para publicar la web en cualquier dominio. Un `ACTION_VIEW` con una URI relativa no
      * abre nada, asi que aqui se completa contra la base del manifiesto.
+     *
+     * Devuelve null si el resultado no es HTTPS en el host oficial: el manifiesto se sirve sin
+     * firma, asi que quien controle el sitio (o reclame el subdominio) no debe poder dirigir a
+     * los usuarios a un APK ajeno servido en claro.
      */
-    private fun resolveApkUrl(value: String): String = when {
-        value.startsWith("http://") || value.startsWith("https://") -> value
-        else -> "${BuildConfig.SITE_URL}/${value.trimStart('/')}"
+    private fun resolveApkUrl(value: String): String? {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) return null
+        val absolute = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            trimmed
+        } else {
+            "${BuildConfig.SITE_URL}/${trimmed.trimStart('/')}"
+        }
+        val uri = runCatching { URI(absolute) }.getOrNull() ?: return null
+        if (!uri.scheme.equals("https", ignoreCase = true)) return null
+        if (!uri.host.equals(officialHost, ignoreCase = true)) return null
+        return uri.toString()
     }
 
     /**
@@ -58,7 +76,8 @@ object Updater {
                 val json = JSONObject(body)
                 UpdateInfo(
                     versionName = json.getString("version"),
-                    apkUrl = resolveApkUrl(json.getString("apkUrl")),
+                    apkUrl = resolveApkUrl(json.getString("apkUrl"))
+                        ?: error("apkUrl del manifiesto no es https en el host oficial"),
                 )
             } finally {
                 connection.disconnect()

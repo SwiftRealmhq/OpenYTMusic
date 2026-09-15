@@ -9,4 +9,15 @@
     <exclude
         domain="database"
         path="exoplayer_internal.db" />
+    <!-- El DataStore guarda la cookie de sesion de YouTube (SAPISID), el token de
+         Discord y el email de la cuenta. No debe replicarse a la nube ni viajar en
+         la transferencia de dispositivo en claro. -->
+    <exclude
+        domain="file"
+        path="./datastore" />
+    <!-- Cookies de accounts.google.com / music.youtube.com y demas almacen del
+         WebView (login y BotGuard). -->
+    <exclude
+        domain="root"
+        path="./app_webview" />
 </full-backup-content>

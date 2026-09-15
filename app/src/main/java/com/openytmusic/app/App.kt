@@ -29,8 +29,10 @@ import com.openytmusic.app.utils.dataStore
 import com.openytmusic.app.utils.get
 import com.openytmusic.app.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -40,10 +42,16 @@ import java.util.Locale
 
 @HiltAndroidApp
 class App : Application(), ImageLoaderFactory {
-    @OptIn(DelicateCoroutinesApi::class)
+    /** Scope de vida de la app: no bloquea `onCreate` ni deja corrutinas sin dueño. */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     override fun onCreate() {
         super.onCreate()
-        Timber.plant(Timber.DebugTree())
+        // DebugTree solo en debug: en release volcaba datos del usuario (cuenta,
+        // respuestas autenticadas) en logcat, legible por cualquier app.
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
 
         // PoToken: BotGuard via WebView (zemer-cipher). Si el WebView esta roto,
         // el provider devuelve null y la reproduccion cae a los clientes Android.
@@ -87,10 +95,11 @@ class App : Application(), ImageLoaderFactory {
             YouTube.useLoginForBrowse = true
         }
 
-        GlobalScope.launch {
+        appScope.launch {
             dataStore.data
                 .map { it[VisitorDataKey] }
                 .distinctUntilChanged()
+                .catch { reportException(it) }
                 .collect { visitorData ->
                     YouTube.visitorData = visitorData
                         ?.takeIf { it != "null" } // Previously visitorData was sometimes saved as "null" due to a bug
@@ -101,10 +110,11 @@ class App : Application(), ImageLoaderFactory {
                         } ?: YouTube.DEFAULT_VISITOR_DATA
                 }
         }
-        GlobalScope.launch {
+        appScope.launch {
             dataStore.data
                 .map { it[InnerTubeCookieKey] }
                 .distinctUntilChanged()
+                .catch { reportException(it) }
                 .collect { cookie ->
                     YouTube.cookie = cookie
                 }

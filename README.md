@@ -12,9 +12,14 @@ Desarrollado por: Leo
 
 ---
 
-> ⚠️ **CONFIDENCIAL** — Repositorio **privado** de código **cerrado**. El acceso está limitado
-> por invitación explícita del autor. Queda prohibida la copia, distribución, publicación, fork
-> o divulgación de cualquier parte del código, total o parcial, sin autorización escrita previa.
+> ⚠️ **Repositorio privado** — el acceso está limitado por invitación del autor.
+>
+> **Licencia: GPLv3.** OpenYTMusic es una obra derivada de
+> [InnerTune](https://github.com/z-huang/InnerTune), que es GPLv3: la licencia se hereda y **no
+> se puede relicenciar ni declarar de código cerrado**. Consecuencia práctica: **publicar el APK
+> obliga a ofrecer el código fuente correspondiente** a quien lo reciba, así que si la web sirve
+> el APK de descarga, este repositorio (o un tarball del código de esa versión) tiene que ser
+> accesible para quien lo descargue. Ver [NOTICE](NOTICE).
 
 ---
 
@@ -127,7 +132,8 @@ desactivado a propósito en `app/build.gradle.kts`.
 
 ## Compilar paso a paso
 
-Todo se ejecuta desde la raíz del proyecto (`Velqi-Kt/`).
+Todo se ejecuta desde la raíz del repositorio (`rootProject.name = "OpenYTMusic"`; la carpeta
+local puede llamarse de cualquier otra forma, `velqi_files/` en la landing es un resto antiguo).
 
 ### 1. Verificación rápida de tipos (lo más rápido, sin empaquetar)
 
@@ -192,8 +198,14 @@ Si la keystore **no** está presente, el build no falla: sigue adelante y entreg
 |---|---|
 | Archivo | `openytmusic-release.jks` (raíz del proyecto) |
 | Alias | `openytmusic` |
-| Contraseña de store | variable `OYM_STORE_PASSWORD` (respaldo: `OpenYTMusic2026`) |
-| Contraseña de clave | variable `OYM_KEY_PASSWORD` (respaldo: `OpenYTMusic2026`) |
+| Contraseña de store | `OYM_STORE_PASSWORD` (variable de entorno o `local.properties`) |
+| Contraseña de clave | `OYM_KEY_PASSWORD` (variable de entorno o `local.properties`) |
+
+> ⚠️ **No hay contraseña por defecto y no se escribe aquí.** La que estuvo publicada en este
+> README (`OpenYTMusic2026`) queda **comprometida**: cualquiera que consiguiera el `.jks` podía
+> firmar un APK aceptado como actualización. El build **falla** si faltan las variables al
+> pedir un release, en vez de firmar con un secreto conocido. Pendiente: **rotar la keystore**
+> (nadie tiene instalada la 0.5.0, así que el cambio de firma no rompe a nadie).
 
 Firma manual de respaldo con `zipalign` + `apksigner`:
 
@@ -211,11 +223,11 @@ BT="$ANDROID_HOME/build-tools/35.0.0"
   --ks-key-alias openytmusic \
   --ks-pass env:OYM_STORE_PASSWORD \
   --key-pass env:OYM_KEY_PASSWORD \
-  --out OpenYTMusic-0.5.0-release.apk \
+  --out OpenYTMusic-0.6.1-release.apk \
   /tmp/oym-aligned.apk
 
 # 3) Verificar la firma (imprime el certificado)
-"$BT/apksigner" verify --print-certs OpenYTMusic-0.5.0-release.apk
+"$BT/apksigner" verify --print-certs OpenYTMusic-0.6.1-release.apk
 ```
 
 Salida esperada del paso 3: `Signer #1 certificate DN: CN=OpenYTMusic, ...` y
@@ -228,11 +240,11 @@ Salida esperada del paso 3: `Signer #1 certificate DN: CN=OpenYTMusic, ...` y
 
 ```bash
 # Dispositivo por USB
-adb install -r OpenYTMusic-0.5.0-release.apk
+adb install -r OpenYTMusic-0.6.1-release.apk
 
 # Emulador / Waydroid por red
 adb connect 192.168.240.112:5555
-adb install -r OpenYTMusic-0.5.0-release.apk
+adb install -r OpenYTMusic-0.6.1-release.apk
 
 # Desinstalar y empezar de cero (borra biblioteca local y sesión)
 adb uninstall com.openytmusic.app

@@ -340,6 +340,8 @@ class Migration11To12 : AutoMigrationSpec {
                 )
             }
         }
-        db.query("CREATE INDEX IF NOT EXISTS `index_song_albumId` ON `song` (`albumId`)")
+        // execSQL, no query(): con query() el statement solo se prepara y el Cursor
+        // nunca se consume, asi que el indice NO se creaba y el Cursor quedaba abierto.
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_song_albumId` ON `song` (`albumId`)")
     }
 }

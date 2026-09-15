@@ -125,6 +125,15 @@ fun LoginScreen(
                     webView = this
                     loadUrl("https://accounts.google.com/ServiceLogin?ltmpl=music&service=youtube&passive=true&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26next%3Dhttps%253A%252F%252Fmusic.youtube.com%252F")
                 }
+            },
+            // Sin destroy() el WebView quedaba referenciado por el factory y el estado
+            // de Compose: retenia el Context de la Activity y dejaba vivo el proceso de
+            // render con JS y el bridge inyectados toda la vida del proceso.
+            onRelease = { view ->
+                view.stopLoading()
+                view.removeJavascriptInterface("Android")
+                view.webViewClient = WebViewClient()
+                view.destroy()
             }
         )
 

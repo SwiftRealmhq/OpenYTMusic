@@ -248,6 +248,14 @@ fun DiscordLoginScreen(
                 Log.i(TAG, "Abriendo discord.com/login")
                 loadUrl("https://discord.com/login")
             }
+        },
+        // Destruir el WebView al salir de la pantalla: sin esto retiene la Activity y
+        // el proceso de render (con el bridge de JS inyectado) vive hasta que muere la app.
+        onRelease = { view ->
+            view.stopLoading()
+            view.removeJavascriptInterface("Android")
+            view.webViewClient = WebViewClient()
+            view.destroy()
         }
     )
 

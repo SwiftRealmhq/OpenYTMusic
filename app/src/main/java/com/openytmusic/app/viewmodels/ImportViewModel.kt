@@ -10,6 +10,7 @@ import com.openytmusic.app.innertube.YouTube
 import com.openytmusic.app.innertube.models.PlaylistItem
 import com.openytmusic.app.innertube.utils.completed
 import com.openytmusic.app.models.toMediaMetadata
+import com.openytmusic.app.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -66,25 +67,22 @@ class ImportViewModel @Inject constructor(
         } else {
             loading.value = false
         }
-        // Velqi: recargar automaticamente al volver del login - si la sesion
-        // aparece (o cambia), la pantalla se refresca sola sin salir y reentrar.
-        viewModelScope.launch(Dispatchers.IO) {
-            var lastSession: Boolean? = loggedIn.value
-            while (true) {
-                delay(700)
-                val session = YouTube.cookie?.contains("SAPISID") == true
-                if (session != lastSession) {
-                    lastSession = session
-                    loggedIn.value = session
-                    if (session) {
-                        selected.value = emptySet()
-                        includeLiked.value = false
-                        loadPlaylists()
-                    } else {
-                        playlists.value = emptyList()
-                        selected.value = emptySet()
-                        includeLiked.value = false
-                    }
+        // Recargar automaticamente al volver del login - si la sesion aparece (o
+        // cambia), la pantalla se refresca sola sin salir y reentrar. Se observa el
+        // StateFlow de sesion en vez de sondearla cada 700 ms durante toda la vida
+        // del ViewModel.
+        viewModelScope.launch {
+            YouTube.signedIn.collect { session ->
+                if (session == loggedIn.value) return@collect
+                loggedIn.value = session
+                if (session) {
+                    selected.value = emptySet()
+                    includeLiked.value = false
+                    loadPlaylists()
+                } else {
+                    playlists.value = emptyList()
+                    selected.value = emptySet()
+                    includeLiked.value = false
                 }
             }
         }
@@ -94,23 +92,12 @@ class ImportViewModel @Inject constructor(
         loading.value = true
         loadError.value = false
         viewModelScope.launch(Dispatchers.IO) {
-            // Diagnostico: con que cuenta estamos entrando
-            YouTube.accountInfo().onSuccess {
-                android.util.Log.d("VELQIDBG", "import: cuenta=${it.name} email=${it.email} handle=${it.channelHandle}")
-            }.onFailure {
-                android.util.Log.w("VELQIDBG", "import: accountInfo fallo", it)
-            }
-            // Fuente 1: playlists PROPIAS de la cuenta (aqui esta "yoyoyoy")
+            // Fuente 1: playlists PROPIAS de la cuenta
             val library = YouTube.libraryPlaylists()
-            library.onSuccess {
-                android.util.Log.d("VELQIDBG", "import: libraryPlaylists ok, count=${it.size} titles=${it.map { p -> p.title }}")
-            }.onFailure {
-                android.util.Log.w("VELQIDBG", "import: libraryPlaylists fallo", it)
-            }
             // Fuente 2: colecciones automaticas (Liked Music, Episodes for Later)
             val liked = YouTube.likedPlaylists()
-            liked.onFailure {
-                android.util.Log.w("VELQIDBG", "import: likedPlaylists fallo", it)
+            if (library.isFailure && liked.isFailure) {
+                reportException(library.exceptionOrNull() ?: liked.exceptionOrNull()!!)
             }
             val merged = (library.getOrNull().orEmpty() + liked.getOrNull().orEmpty())
                 .distinctBy { it.id }

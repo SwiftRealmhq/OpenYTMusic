@@ -91,6 +91,7 @@ import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.net.Uri
 import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
@@ -346,19 +347,6 @@ class MainActivity : ComponentActivity() {
                     // absorber el BACK fantasma que dispara el IME al cerrarse tras
                     // pulsar Enter con teclado fisico (tipico en emulador).
                     var lastSearchNavigate by remember { mutableStateOf(0L) }
-                    val navControllerId = System.identityHashCode(navController)
-                    DisposableEffect(navController) {
-                        Log.d("VELQIDBG", "attach observer ctrl=$navControllerId start=${navController.currentDestination?.route}")
-                        val listener = NavController.OnDestinationChangedListener { controller, destination, _ ->
-                            val stack = controller.currentBackStack.value.joinToString(" -> ") { it.destination.route ?: "?" }
-                            Log.d("VELQIDBG", "DEST=${destination.route} ctrl=${System.identityHashCode(controller)} stack=[$stack]")
-                        }
-                        navController.addOnDestinationChangedListener(listener)
-                        onDispose {
-                            Log.d("VELQIDBG", "DETACH observer ctrl=$navControllerId")
-                            navController.removeOnDestinationChangedListener(listener)
-                        }
-                    }
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val inSelectMode = navBackStackEntry?.savedStateHandle?.getStateFlow("inSelectMode", false)?.collectAsState()
 
@@ -392,7 +380,6 @@ class MainActivity : ComponentActivity() {
                         mutableStateOf(false)
                     }
                     val onActiveChange: (Boolean) -> Unit = { newActive ->
-                        Log.d("VELQIDBG", "active->$newActive route=${navBackStackEntry?.destination?.route}")
                         active = newActive
                         if (!newActive) {
                             focusManager.clearFocus()
@@ -407,11 +394,9 @@ class MainActivity : ComponentActivity() {
 
                     val onSearch: (String) -> Unit = {
                         if (it.isNotEmpty()) {
-                            Log.d("VELQIDBG", "onSearch text=[$it] route=${navBackStackEntry?.destination?.route}")
                             // Navegar PRIMERO: colapsar la barra antes de navegar (cierre del
                             // teclado/foco) revertia la navegacion al Home al instante.
                             navController.navigate("search/${it.urlEncode()}")
-                            Log.d("VELQIDBG", "onSearch navigate OK")
                             lastSearchNavigate = SystemClock.uptimeMillis()
                             onActiveChange(false)
                             onActiveChange(false)
@@ -480,14 +465,13 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(navBackStackEntry) {
                         if (navBackStackEntry?.destination?.route?.startsWith("search/") == true) {
                             val rawQuery = navBackStackEntry?.arguments?.getString("query")
-                            Log.d("VELQIDBG", "restore query raw=[$rawQuery]")
                             val searchQuery = if (rawQuery != null) {
                                 try {
                                     withContext(Dispatchers.IO) {
                                         URLDecoder.decode(rawQuery, "UTF-8")
                                     }
                                 } catch (e: Exception) {
-                                    Log.d("VELQIDBG", "restore decode FAIL: ${e.message}")
+                                    reportException(e)
                                     rawQuery
                                 }
                             } else ""
@@ -538,50 +522,69 @@ class MainActivity : ComponentActivity() {
                     var sharedSong: SongItem? by remember {
                         mutableStateOf(null)
                     }
-                    DisposableEffect(Unit) {
-                        val listener = Consumer<Intent> { intent ->
-                            val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return@Consumer
-                            when (val path = uri.pathSegments.firstOrNull()) {
-                                "playlist" -> uri.getQueryParameter("list")?.let { playlistId ->
+                    // Deep link / "compartir". Vive en una funcion local para poder
+                    // procesar tambien el Intent de lanzamiento: addOnNewIntentListener
+                    // solo avisa de los intents NUEVOS, asi que abrir un enlace con la
+                    // app cerrada (arranque en frio) se perdia en silencio.
+                    fun handleIntent(intent: Intent) {
+                        val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
+                        when (val path = uri.pathSegments.firstOrNull()) {
+                            "playlist" -> uri.getQueryParameter("list")
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { playlistId ->
                                     if (playlistId.startsWith("OLAK5uy_")) {
                                         coroutineScope.launch {
                                             YouTube.albumSongs(playlistId).onSuccess { songs ->
                                                 songs.firstOrNull()?.album?.id?.let { browseId ->
-                                                    navController.navigate("album/$browseId")
+                                                    navController.navigate("album/${Uri.encode(browseId)}")
                                                 }
                                             }.onFailure {
                                                 reportException(it)
                                             }
                                         }
                                     } else {
-                                        navController.navigate("online_playlist/$playlistId")
+                                        // Uri.encode: un id con '/' no encaja en una ruta de un
+                                        // solo segmento y navigate() lanzaba
+                                        // IllegalArgumentException sin capturar (la actividad es
+                                        // exportada y BROWSABLE: cualquier app podia cerrar el
+                                        // proceso con un intent).
+                                        navController.navigate("online_playlist/${Uri.encode(playlistId)}")
                                     }
                                 }
 
-                                "channel", "c" -> uri.lastPathSegment?.let { artistId ->
-                                    navController.navigate("artist/$artistId")
-                                }
+                            "channel", "c" -> uri.lastPathSegment
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { artistId -> navController.navigate("artist/${Uri.encode(artistId)}") }
 
-                                else -> when {
-                                    path == "watch" -> uri.getQueryParameter("v")
-                                    uri.host == "youtu.be" -> path
-                                    else -> null
-                                }?.let { videoId ->
-                                    coroutineScope.launch {
-                                        withContext(Dispatchers.IO) {
-                                            YouTube.queue(listOf(videoId))
-                                        }.onSuccess {
-                                            sharedSong = it.firstOrNull()
-                                        }.onFailure {
-                                            reportException(it)
-                                        }
+                            else -> when {
+                                path == "watch" -> uri.getQueryParameter("v")
+                                uri.host == "youtu.be" -> path
+                                else -> null
+                            }?.let { videoId ->
+                                coroutineScope.launch {
+                                    withContext(Dispatchers.IO) {
+                                        YouTube.queue(listOf(videoId))
+                                    }.onSuccess {
+                                        sharedSong = it.firstOrNull()
+                                    }.onFailure {
+                                        reportException(it)
                                     }
                                 }
                             }
                         }
+                    }
 
+                    DisposableEffect(Unit) {
+                        val listener = Consumer<Intent> { handleIntent(it) }
                         addOnNewIntentListener(listener)
                         onDispose { removeOnNewIntentListener(listener) }
+                    }
+
+                    LaunchedEffect(Unit) {
+                        // Arranque en frio: el Intent con el que se abrio la app.
+                        if (savedInstanceState == null) {
+                            intent?.let { handleIntent(it) }
+                        }
                     }
 
                     CompositionLocalProvider(

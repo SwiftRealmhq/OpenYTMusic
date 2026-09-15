@@ -7,6 +7,7 @@ import com.openytmusic.app.innertube.models.ArtistItem
 import com.openytmusic.app.innertube.models.BrowseEndpoint
 import com.openytmusic.app.innertube.models.GridRenderer
 import com.openytmusic.app.innertube.models.MusicCarouselShelfRenderer
+import com.openytmusic.app.innertube.models.MusicTwoRowItemRenderer
 import com.openytmusic.app.innertube.models.PlaylistItem
 import com.openytmusic.app.innertube.models.SearchSuggestions
 import com.openytmusic.app.innertube.models.SectionListRenderer
@@ -51,12 +52,31 @@ import com.openytmusic.app.innertube.pages.SearchSuggestionPage
 import com.openytmusic.app.innertube.pages.SearchSummary
 import com.openytmusic.app.innertube.pages.SearchSummaryPage
 import io.ktor.client.call.body
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.Proxy
+
+/**
+ * Tope duro de paginas por listado paginado. Sin el, una continuacion repetida
+ * (o mal parseada) deja el bucle girando para siempre acumulando memoria.
+ */
+private const val MAX_LIBRARY_PAGES = 50
+
+/**
+ * `catch (Throwable)` y `runCatching` se tragan `CancellationException`: una corrutina
+ * cancelada (cambio de cancion, player liberado) seguia trabajando y rompia la cancelacion
+ * estructurada. Siempre hay que re-lanzarla.
+ */
+private fun Throwable.rethrowIfCancellation() {
+    if (this is CancellationException) throw this
+}
 
 /**
  * Resultado de [YouTube.player].
@@ -96,7 +116,17 @@ object YouTube {
         get() = innerTube.cookie
         set(value) {
             innerTube.cookie = value
+            signedInState.value = value?.contains("SAPISID") == true
         }
+
+    private val signedInState = MutableStateFlow(false)
+
+    /**
+     * Hay sesion de YouTube Music utilizable (la cookie trae SAPISID).
+     * Los ViewModels observan esto en vez de sondear la sesion cada 700 ms.
+     */
+    val signedIn: StateFlow<Boolean> get() = signedInState
+
     var proxy: Proxy?
         get() = innerTube.proxy
         set(value) {
@@ -306,33 +336,39 @@ object YouTube {
      * playlists de cada pagina filtrada - sin hardcodear nada.
      */
     suspend fun libraryPlaylists(): Result<List<PlaylistItem>> = runCatching {
+        fun parseTwoRowItems(renderers: List<MusicTwoRowItemRenderer>): List<PlaylistItem> =
+            renderers.mapNotNull { renderer ->
+                ArtistItemsPage.fromMusicTwoRowItemRenderer(renderer) as? PlaylistItem
+                    // Rescate: las playlists PRIVADAS de la cuenta llegan sin
+                    // browseEndpointContextSupportedConfigs y el parser las bota.
+                    // El prefijo "VL" del browseId es marca inequivoca de playlist.
+                    ?: renderer.navigationEndpoint?.browseEndpoint?.browseId
+                        ?.takeIf { it.startsWith("VL") }
+                        ?.let { browseId ->
+                            PlaylistItem(
+                                id = browseId.removePrefix("VL"),
+                                title = renderer.title.runs?.firstOrNull()?.text ?: return@let null,
+                                author = renderer.subtitle?.runs?.getOrNull(2)?.let {
+                                    Artist(name = it.text, id = it.navigationEndpoint?.browseEndpoint?.browseId)
+                                },
+                                songCountText = renderer.subtitle?.runs?.getOrNull(4)?.text,
+                                thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl().orEmpty(),
+                                playEndpoint = null,
+                                shuffleEndpoint = WatchEndpoint(playlistId = browseId.removePrefix("VL")),
+                                radioEndpoint = null
+                            )
+                        }
+            }
+
+        fun parseGridItems(items: List<GridRenderer.Item>?): List<PlaylistItem> =
+            parseTwoRowItems(items.orEmpty().mapNotNull { it.musicTwoRowItemRenderer })
+
         fun parseContents(contents: List<SectionListRenderer.Content>?): List<PlaylistItem> =
             contents?.flatMap { content ->
-                val twoRowItems = content.gridRenderer?.items?.mapNotNull { it.musicTwoRowItemRenderer }
-                    ?: content.musicCarouselShelfRenderer?.contents?.mapNotNull { it.musicTwoRowItemRenderer }
+                content.gridRenderer?.items?.let { parseGridItems(it) }
+                    ?: content.musicCarouselShelfRenderer?.contents
+                        ?.let { parseTwoRowItems(it.mapNotNull { item -> item.musicTwoRowItemRenderer }) }
                     ?: emptyList()
-                twoRowItems.mapNotNull { renderer ->
-                    ArtistItemsPage.fromMusicTwoRowItemRenderer(renderer) as? PlaylistItem
-                        // Rescate: las playlists PRIVADAS de la cuenta llegan sin
-                        // browseEndpointContextSupportedConfigs y el parser las bota.
-                        // El prefijo "VL" del browseId es marca inequivoca de playlist.
-                        ?: renderer.navigationEndpoint?.browseEndpoint?.browseId
-                            ?.takeIf { it.startsWith("VL") }
-                            ?.let { browseId ->
-                                PlaylistItem(
-                                    id = browseId.removePrefix("VL"),
-                                    title = renderer.title.runs?.firstOrNull()?.text ?: return@let null,
-                                    author = renderer.subtitle?.runs?.getOrNull(2)?.let {
-                                        Artist(name = it.text, id = it.navigationEndpoint?.browseEndpoint?.browseId)
-                                    },
-                                    songCountText = renderer.subtitle?.runs?.getOrNull(4)?.text,
-                                    thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl().orEmpty(),
-                                    playEndpoint = null,
-                                    shuffleEndpoint = WatchEndpoint(playlistId = browseId.removePrefix("VL")),
-                                    radioEndpoint = null
-                                )
-                            }
-                }
             }.orEmpty()
 
         val landingBody = innerTube.browse(
@@ -340,28 +376,15 @@ object YouTube {
             browseId = "FEmusic_library_landing",
             setLogin = true
         ).bodyAsText()
-        // logcat corta lineas largas (~4KB): troceamos para ver la respuesta completa
-        landingBody.chunked(2000).forEachIndexed { i, chunk ->
-            println("VELQIDBG: raw[$i]=$chunk")
-        }
         // Json tolerante (mismo config que el cliente): sin esto un key desconocido
         // (ej. maxAgeSeconds) mata el decode de toda la respuesta.
         val landing = Json { ignoreUnknownKeys = true; explicitNulls = false }.decodeFromString<BrowseResponse>(landingBody)
         val landingSectionList = landing.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
             ?.tabRenderer?.content?.sectionListRenderer
-        println("VELQIDBG: import: landing secciones=${landingSectionList?.contents?.map { c ->
-            listOfNotNull(
-                if (c.gridRenderer != null) "grid(items=${c.gridRenderer?.items?.size})" else null,
-                if (c.musicShelfRenderer != null) "shelf(items=${c.musicShelfRenderer?.contents?.size})" else null,
-                if (c.musicCarouselShelfRenderer != null) "carousel" else null,
-                if (c.musicPlaylistShelfRenderer != null) "playlistShelf" else null,
-            ).ifEmpty { listOf("otro") }
-        }} continuation=${landingSectionList?.continuations != null}")
 
         val chips = (landingSectionList?.header?.chipCloudRenderer
             ?: landingSectionList?.header?.musicSideAlignedItemRenderer?.startItems
                 ?.firstOrNull()?.chipCloudRenderer)?.chips.orEmpty()
-        println("VELQIDBG: import: landing chips=${chips.map { it.chipCloudChipRenderer.text?.runs?.firstOrNull()?.text to (it.chipCloudChipRenderer.navigationEndpoint?.browseEndpoint?.params != null) }}")
 
         val playlists = mutableListOf<PlaylistItem>()
         playlists += parseContents(landingSectionList?.contents)
@@ -371,25 +394,39 @@ object YouTube {
             it.navigationEndpoint?.browseEndpoint?.browseId == "FEmusic_liked_playlists"
         }
         if (playlistChip != null) {
-            val full = innerTube.browse(
+            var response = innerTube.browse(
                 client = WEB_REMIX,
                 browseId = playlistChip.navigationEndpoint?.browseEndpoint?.browseId,
                 params = playlistChip.navigationEndpoint?.browseEndpoint?.params,
                 setLogin = true
             ).body<BrowseResponse>()
-            var continuation: String? = null
-            do {
-                val contents = full.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
+            // La respuesta se REASSIGNA en cada vuelta: derivar la continuacion siempre
+            // del mismo objeto dejaba la condicion perpetuamente verdadera (bucle
+            // infinito re-anadiendo la misma pagina hasta OutOfMemoryError).
+            // Tope de paginas y set de tokens vistos como red de seguridad.
+            val seenContinuations = mutableSetOf<String>()
+            var pages = 0
+            while (pages++ < MAX_LIBRARY_PAGES) {
+                val contents = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
                     ?.tabRenderer?.content?.sectionListRenderer?.contents
-                playlists += parseContents(contents)
-                continuation = contents?.lastOrNull()?.gridRenderer?.continuations?.getContinuation()
-            } while (continuation != null)
-        } else {
-            println("VELQIDBG: import: entrando por chip FEmusic_liked_playlists (pagina completa de la cuenta)")
+                val continuedGrid = response.continuationContents?.gridContinuation
+                playlists += if (continuedGrid != null) {
+                    parseGridItems(continuedGrid.items)
+                } else {
+                    parseContents(contents)
+                }
+                val continuation = continuedGrid?.continuations?.getContinuation()
+                    ?: contents?.lastOrNull()?.gridRenderer?.continuations?.getContinuation()
+                    ?: break
+                if (!seenContinuations.add(continuation)) break
+                response = innerTube.browse(
+                    client = WEB_REMIX,
+                    continuation = continuation,
+                    setLogin = true
+                ).body()
+            }
         }
-        playlists.distinctBy { it.id }.also {
-            println("VELQIDBG: import: libraryPlaylists parse final count=${it.size}")
-        }
+        playlists.distinctBy { it.id }
     }
 
     suspend fun playlist(playlistId: String): Result<PlaylistPage> = runCatching {
@@ -534,10 +571,6 @@ object YouTube {
             browseId = "FEmusic_liked_playlists",
             setLogin = true
         ).bodyAsText()
-        // Velqi: dump troceado para diagnostico (logcat corta lineas de ~4KB)
-        pageBody.chunked(2000).forEachIndexed { i, chunk ->
-            println("VELQIDBG: likedPage[$i]=$chunk")
-        }
         val response = Json { ignoreUnknownKeys = true; explicitNulls = false }.decodeFromString<BrowseResponse>(pageBody)
         // Velqi: sin !! - un response inesperado no debe morir en silencio;
         // devuelve lista vacia y la pantalla muestra "reintentar".
@@ -545,14 +578,6 @@ object YouTube {
         // playlists propias pueden venir en una seccion distinta al grid inicial.
         val allContents = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
             ?.tabRenderer?.content?.sectionListRenderer?.contents.orEmpty()
-        println("VELQIDBG: import: likedPage secciones=${allContents.map { c ->
-            listOfNotNull(
-                if (c.gridRenderer != null) "grid(items=${c.gridRenderer?.items?.size})" else null,
-                if (c.musicShelfRenderer != null) "shelf(items=${c.musicShelfRenderer?.contents?.size})" else null,
-                if (c.musicCarouselShelfRenderer != null) "carousel" else null,
-                if (c.musicPlaylistShelfRenderer != null) "playlistShelf" else null,
-            ).ifEmpty { listOf("otro") }
-        }}")
         val grid = allContents.firstOrNull()?.gridRenderer
         val items = grid?.items ?: emptyList()
         val parsed = items
@@ -579,7 +604,6 @@ object YouTube {
                             )
                         }
             }.toMutableList()
-        println("VELQIDBG: import: likedPlaylists grid items=${items.size} parseados=${parsed.size} continuation=${grid?.continuations != null}")
         // Paginacion: traer las paginas siguientes del grid si existen
         var continuation = grid?.continuations?.getContinuation()
         while (continuation != null) {
@@ -651,6 +675,13 @@ object YouTube {
                     walled = true
                 }
             } catch (e: Throwable) {
+                e.rethrowIfCancellation()
+                // El cliente usa expectSuccess: un 403/4xx del muro llega como EXCEPCION,
+                // no como playabilityStatus. Sin marcarlo aqui, el rescate con PoToken
+                // nunca se activaba cuando el bloqueo venia por HTTP.
+                if (e is ResponseException && e.response.status.value in 400..499) {
+                    walled = true
+                }
                 lastError = e
             }
         }
@@ -701,6 +732,7 @@ object YouTube {
                     poTokenAttempt = "sin PoToken (BotGuard frio, calentando o no disponible)"
                 }
             } catch (t: Throwable) {
+                t.rethrowIfCancellation()
                 poTokenAttempt = "pot excepcion: ${t.javaClass.simpleName}: ${t.message}"
             }
         }
@@ -717,11 +749,13 @@ object YouTube {
                 )
             }
         } catch (e: Throwable) {
+            e.rethrowIfCancellation()
             lastError = e
         }
         val safePlayerResponse = try {
             innerTube.player(TVHTML5, videoId, playlistId).body<PlayerResponse>()
         } catch (e: Throwable) {
+            e.rethrowIfCancellation()
             lastError = e
             null
         }

@@ -1,0 +1,28 @@
+OpenYTMusic
+===========
+
+Obra derivada de InnerTune (https://github.com/z-huang/InnerTune)
+Copyright (C) 2021-2024 Zion Huang
+Licencia: GNU General Public License v3.0 (ver LICENSE)
+
+Este proyecto NO es un trabajo original: reutiliza y modifica codigo de InnerTune, que se
+distribuye bajo GPLv3. La GPLv3 es una licencia copyleft: la obra derivada tiene que seguir
+bajo GPLv3, conservar los avisos de copyright del upstream y poner el codigo fuente
+correspondiente a disposicion de quien reciba el binario.
+
+Modulos de terceros incluidos:
+
+  * material-color-utilities (material-color-utilities/)
+      Copyright 2021 Google LLC. Apache License 2.0.
+
+  * Muxers/streams: las dependencias de terceros mantienen sus propias licencias; ver
+    gradle/libs.versions.toml y sus repositorios de origen.
+
+Modulos propios de OpenYTMusic:
+
+  * app, innertube, zemer-cipher, lrclib, kugou, discord-rpc, desktop, selene
+      Los clientes InnerTube (Web/Android/iOS), el generador de PoToken y las
+      modificaciones de interfaz son aportaciones de este proyecto, bajo GPLv3 como el resto.
+
+OpenYTMusic no esta afiliado ni respaldado por YouTube ni por Google. "YouTube" y "YouTube
+Music" son marcas de Google LLC.

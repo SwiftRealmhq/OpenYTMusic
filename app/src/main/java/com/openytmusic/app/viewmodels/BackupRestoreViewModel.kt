@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.openytmusic.app.MainActivity
 import com.openytmusic.app.R
 import com.openytmusic.app.db.InternalDatabase
@@ -18,7 +19,9 @@ import com.openytmusic.app.playback.MusicService.Companion.PERSISTENT_QUEUE_FILE
 import com.openytmusic.app.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
@@ -29,7 +32,11 @@ import kotlin.system.exitProcess
 class BackupRestoreViewModel @Inject constructor(
     val database: MusicDatabase,
 ) : ViewModel() {
-    fun backup(context: Context, uri: Uri) {
+    /**
+     * La copia corre en Dispatchers.IO: antes se hacia en el hilo que llamaba (la UI),
+     * con el fichero de la base de datos y el DataStore enteros de por medio.
+     */
+    fun backup(context: Context, uri: Uri) = viewModelScope.launch(Dispatchers.IO) {
         runCatching {
             context.applicationContext.contentResolver.openOutputStream(uri)?.use {
                 it.buffered().zipOutputStream().use { outputStream ->
@@ -47,14 +54,18 @@ class BackupRestoreViewModel @Inject constructor(
                 }
             }
         }.onSuccess {
-            Toast.makeText(context, R.string.backup_create_success, Toast.LENGTH_SHORT).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, R.string.backup_create_success, Toast.LENGTH_SHORT).show()
+            }
         }.onFailure {
             reportException(it)
-            Toast.makeText(context, R.string.backup_create_failed, Toast.LENGTH_SHORT).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, R.string.backup_create_failed, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
-    fun restore(context: Context, uri: Uri) {
+    fun restore(context: Context, uri: Uri) = viewModelScope.launch(Dispatchers.IO) {
         runCatching {
             context.applicationContext.contentResolver.openInputStream(uri)?.use {
                 it.zipInputStream().use { inputStream ->
@@ -68,11 +79,15 @@ class BackupRestoreViewModel @Inject constructor(
                             }
 
                             InternalDatabase.DB_NAME -> {
+                                // Capturar la ruta ANTES de close(): leer
+                                // openHelper.writableDatabase despues reabria la conexion
+                                // y se sobrescribia el fichero con la base viva detras.
+                                val path = database.openHelper.writableDatabase.path
                                 runBlocking(Dispatchers.IO) {
                                     database.checkpoint()
                                 }
                                 database.close()
-                                FileOutputStream(database.openHelper.writableDatabase.path).use { outputStream ->
+                                FileOutputStream(path).use { outputStream ->
                                     inputStream.copyTo(outputStream)
                                 }
                             }
@@ -87,7 +102,9 @@ class BackupRestoreViewModel @Inject constructor(
             exitProcess(0)
         }.onFailure {
             reportException(it)
-            Toast.makeText(context, R.string.restore_failed, Toast.LENGTH_SHORT).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, R.string.restore_failed, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

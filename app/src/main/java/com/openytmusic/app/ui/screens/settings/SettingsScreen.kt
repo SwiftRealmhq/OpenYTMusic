@@ -1,5 +1,7 @@
 package com.openytmusic.app.ui.screens.settings
 
+import android.webkit.CookieManager
+import android.webkit.WebStorage
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -204,6 +206,13 @@ fun SettingsScreen(
                                 }
                                 YouTube.cookie = null
                                 YouTube.visitorData = YouTube.DEFAULT_VISITOR_DATA
+                                // Borrar la sesion de verdad: sin esto las cookies de
+                                // accounts.google.com/music.youtube.com seguian en disco
+                                // (app_webview) y el siguiente login entraba solo con la
+                                // cuenta anterior, con la cookie aun "viva" en el WebView.
+                                CookieManager.getInstance().removeAllCookies(null)
+                                CookieManager.getInstance().flush()
+                                WebStorage.getInstance().deleteAllData()
                             }
                         }) {
                             Text(

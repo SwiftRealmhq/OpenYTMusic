@@ -38,7 +38,13 @@ class InnerTube {
     var cookie: String? = null
         set(value) {
             field = value
-            cookieMap = if (value == null) emptyMap() else parseCookieString(value)
+            // Una cookie pegada a mano no debe tumbar el proceso: si el parseo falla
+            // se sigue sin sesion y la app lo reporta como "no logueado".
+            cookieMap = if (value == null) {
+                emptyMap()
+            } else {
+                runCatching { parseCookieString(value) }.getOrDefault(emptyMap())
+            }
         }
     private var cookieMap = emptyMap<String, String>()
 
@@ -61,6 +67,14 @@ class InnerTube {
                 explicitNulls = false
                 encodeDefaults = true
             })
+        }
+
+        // Sin timeouts, una conexion que se queda colgada bloquea la resolucion (y el
+        // hilo que la espera) indefinidamente: la app se quedaba "cargando" para siempre.
+        install(HttpTimeout) {
+            connectTimeoutMillis = 8_000
+            requestTimeoutMillis = 15_000
+            socketTimeoutMillis = 15_000
         }
 
         install(ContentEncoding) {

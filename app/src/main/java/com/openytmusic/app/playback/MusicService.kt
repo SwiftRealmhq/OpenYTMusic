@@ -113,6 +113,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -164,6 +165,12 @@ class MusicService : MediaLibraryService(),
     lateinit var mediaLibrarySessionCallback: MediaLibrarySessionCallback
 
     private var scope = CoroutineScope(Dispatchers.Main) + Job()
+
+    /**
+     * Guard del auto-load-more: sin el, dos transiciones rapidas cerca del final de la
+     * cola lanzaban dos peticiones con la MISMA continuacion y anadian items duplicados.
+     */
+    private val loadMoreInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
     private val binder = MusicBinder()
 
     private lateinit var connectivityManager: ConnectivityManager
@@ -606,16 +613,20 @@ class MusicService : MediaLibraryService(),
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-        // Auto load more songs
-        if (dataStore.get(AutoLoadMoreKey, true) &&
+        // Auto load more songs (una sola pagina en vuelo a la vez)
+        val shouldAutoLoadMore = dataStore.get(AutoLoadMoreKey, true) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
             player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
             currentQueue.hasNextPage()
-        ) {
+        if (shouldAutoLoadMore && loadMoreInFlight.compareAndSet(false, true)) {
             scope.launch(SilentHandler) {
-                val mediaItems = currentQueue.nextPage().filterExplicit(dataStore.get(HideExplicitKey, false))
-                if (player.playbackState != STATE_IDLE) {
-                    player.addMediaItems(mediaItems)
+                try {
+                    val mediaItems = currentQueue.nextPage().filterExplicit(dataStore.get(HideExplicitKey, false))
+                    if (player.playbackState != STATE_IDLE) {
+                        player.addMediaItems(mediaItems)
+                    }
+                } finally {
+                    loadMoreInFlight.set(false)
                 }
             }
         }
@@ -1015,6 +1026,10 @@ class MusicService : MediaLibraryService(),
             discordRpc?.closeRPC()
         }
         discordRpc = null
+        // Cancelar ANTES de liberar el player: los collectors y los bucles de este
+        // scope seguian vivos sobre un player ya liberado (y escribian la cola
+        // persistida con un estado invalido).
+        scope.cancel()
         mediaSession.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)
@@ -1026,7 +1041,11 @@ class MusicService : MediaLibraryService(),
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        stopSelf()
+        // Cerrar la app desde Recientes no debe matar una reproduccion en curso;
+        // el servicio solo se detiene si no esta sonando nada.
+        if (!player.isPlaying) {
+            stopSelf()
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession

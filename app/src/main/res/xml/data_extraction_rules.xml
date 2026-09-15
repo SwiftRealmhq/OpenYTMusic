@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   Reglas de extraccion de datos (Android 12+).
+   Ver https://developer.android.com/about/versions/12/backup-restore#xml-changes
 -->
 <data-extraction-rules>
     <cloud-backup>
@@ -14,6 +13,13 @@
         <exclude
             domain="database"
             path="exoplayer_internal.db" />
+        <!-- Credenciales (cookie de YouTube, token de Discord, email): fuera de la nube. -->
+        <exclude
+            domain="file"
+            path="./datastore" />
+        <exclude
+            domain="root"
+            path="./app_webview" />
     </cloud-backup>
     <device-transfer>
         <exclude
@@ -25,5 +31,12 @@
         <exclude
             domain="database"
             path="exoplayer_internal.db" />
+        <!-- La sesion no viaja entre dispositivos. -->
+        <exclude
+            domain="file"
+            path="./datastore" />
+        <exclude
+            domain="root"
+            path="./app_webview" />
     </device-transfer>
 </data-extraction-rules>

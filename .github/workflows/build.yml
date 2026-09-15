@@ -1,9 +1,14 @@
 name: Build debug APK
+
 on:
   workflow_dispatch:
   push:
+    # Solo la rama principal (y tags de version). Antes corria en CUALQUIER rama:
+    # cualquier push de una rama de trabajo ejecutaba un job con secretos.
     branches:
-      - '**'
+      - main
+    tags:
+      - 'v*'
     paths-ignore:
       - 'README.md'
       - 'fastlane/**'
@@ -12,6 +17,10 @@ on:
       - '.github/FUNDING.yml'
       - '.github/ISSUE_TEMPLATE/**'
 
+# Minimo privilegio: este job solo necesita leer el repositorio.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,10 +28,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Decode google-services.json
-        run: echo ${{ secrets.GOOGLE_SERVICES }} | base64 -d >> app/google-services.json
+        run: echo ${{ secrets.GOOGLE_SERVICES }} | base64 -d > app/google-services.json
 
       - name: Decode Keystore
-        run: echo ${{ secrets.KEYSTORE }} | base64 -d >> app/music-debug.jks
+        run: echo ${{ secrets.KEYSTORE }} | base64 -d > app/music-debug.jks
 
       - name: set up JDK 17
         uses: actions/setup-java@v4
@@ -35,8 +44,8 @@ jobs:
         run: ./gradlew assembleDebug lintFullDebug testFullDebugUnitTest --stacktrace -DskipFormatKtlint
         env:
           MUSIC_DEBUG_KEYSTORE_FILE: 'music-debug.jks'
-          MUSIC_DEBUG_SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-          MUSIC_DEBUG_SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          MUSIC_DEBUG_SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          MUSIC_DEBUG_SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

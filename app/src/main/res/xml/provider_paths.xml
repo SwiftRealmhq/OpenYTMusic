@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <external-path
-        name="external_files"
-        path="." />
+    <!-- Solo las descargas. Antes se exponia "." en cache y almacenamiento externo
+         enteros: cualquier uri concedida a otra app daba acceso al arbol completo
+         (cache/velqi_image_cache.json, miniaturas, ficheros de sesion). -->
     <cache-path
-        name="cache"
-        path="." />
+        name="downloads"
+        path="download/" />
     <external-cache-path
-        name="external_cache"
-        path="." />
+        name="external_downloads"
+        path="download/" />
 </paths>
