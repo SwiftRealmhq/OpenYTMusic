@@ -183,7 +183,7 @@ fun AboutScreen(onBack: () -> Unit) {
             )
 
             Text(
-                text = "By Diego Leo",
+                text = "By SwiftRealmhq",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.secondary,
             )

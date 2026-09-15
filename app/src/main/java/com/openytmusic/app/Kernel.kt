@@ -10,7 +10,7 @@ object Kernel {
     const val NAME = "OpenYTMusic"
     const val VERSION = "1.0.0"
     const val BRAND = "OpenYTMusic"
-    const val WEBSITE = "https://github.com/root-leo/OpenYTMusic"
-    const val WEBSITE_LABEL = "github.com/root-leo/OpenYTMusic"
+    const val WEBSITE = "https://github.com/SwiftRealmhq/OpenYTMusic"
+    const val WEBSITE_LABEL = "github.com/SwiftRealmhq/OpenYTMusic"
     const val DISCORD_URL = ""
 }
