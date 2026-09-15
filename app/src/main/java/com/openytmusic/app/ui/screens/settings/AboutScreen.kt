@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +47,9 @@ import com.openytmusic.app.LocalPlayerAwareWindowInsets
 import com.openytmusic.app.R
 import com.openytmusic.app.ui.component.IconButton
 import com.openytmusic.app.ui.utils.backToMain
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Acerca de OpenYTMusic: minimo y limpio — logo animado, nombre y version.
@@ -99,7 +103,16 @@ fun AboutScreen(
         ) {
             InfoRow(
                 label = stringResource(R.string.about_app_version),
-                value = "v${BuildConfig.VERSION_NAME}"
+                // Version + versionCode. Esta fila lee la constante que va cocinada DENTRO
+                // del APK (no la web ni ningun archivo): es la forma de saber sin dudas que
+                // build esta instalado.
+                value = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+            )
+            InfoRow(
+                label = stringResource(R.string.about_installed_at),
+                // Fecha en que Android instalo/actualizo esta copia: si es antigua, lo que
+                // corre en el telefono es una instalacion vieja, no esta build.
+                value = installedAtLabel()
             )
         }
 
@@ -121,6 +134,17 @@ fun AboutScreen(
         },
         scrollBehavior = scrollBehavior
     )
+}
+
+@Composable
+private fun installedAtLabel(): String {
+    val context = LocalContext.current
+    return remember {
+        runCatching {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(info.lastUpdateTime))
+        }.getOrDefault("-")
+    }
 }
 
 @Composable

@@ -314,6 +314,7 @@
     <string name="about">Acerca de</string>
     <string name="about_app_desc">Escuchá tu música favorita de YouTube, con reproducción en segundo plano, letras y una interfaz completamente offline.</string>
     <string name="about_app_version">Versión de la app</string>
+    <string name="about_installed_at">Instalada</string>
     <string name="about_links">Enlaces</string>
     <string name="about_website">Sitio web oficial</string>
     <string name="about_developed_by">Desarrollado por: Leo</string>
