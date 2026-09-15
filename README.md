@@ -4,7 +4,7 @@
 
 # OpenYTMusic
 
-**v0.5.0** · Cliente de YouTube Music · Material Design 3
+**v0.6.1** · Cliente de YouTube Music · Material Design 3
 
 Desarrollado por: Leo
 
@@ -12,14 +12,9 @@ Desarrollado por: Leo
 
 ---
 
-> ⚠️ **Repositorio privado** — el acceso está limitado por invitación del autor.
->
-> **Licencia: GPLv3.** OpenYTMusic es una obra derivada de
-> [InnerTune](https://github.com/z-huang/InnerTune), que es GPLv3: la licencia se hereda y **no
-> se puede relicenciar ni declarar de código cerrado**. Consecuencia práctica: **publicar el APK
-> obliga a ofrecer el código fuente correspondiente** a quien lo reciba, así que si la web sirve
-> el APK de descarga, este repositorio (o un tarball del código de esa versión) tiene que ser
-> accesible para quien lo descargue. Ver [NOTICE](NOTICE).
+> ⚠️ **CONFIDENCIAL** — Repositorio **privado** de código **cerrado**. El acceso está limitado
+> por invitación explícita del autor. Queda prohibida la copia, distribución, publicación, fork
+> o divulgación de cualquier parte del código, total o parcial, sin autorización escrita previa.
 
 ---
 
@@ -451,7 +446,7 @@ La estrategia de testing es conservadora: los cambios deben validarse en disposi
 
 ## Estado
 
-- **Versión**: 0.5.0 (`versionCode` 31)
+- **Versión**: 0.6.1 (`versionCode` 32)
 - **APK release**: universal, ~7,7 MB firmado
 - **Visibilidad**: privado — no público, no forkable, sin mirrors
 - **Propósito del repo**: copia de seguridad en la nube y colaboración cerrada
