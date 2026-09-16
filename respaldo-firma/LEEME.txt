@@ -1,0 +1,95 @@
+RESPALDO DE FIRMA - OpenYT Music
+================================
+Carpeta temporal. Existe SOLO para migrar de maquina.
+BORRARLA del repositorio cuando el proyecto ya corra en el sistema nuevo.
+
+
+POR QUE EXISTE ESTO
+-------------------
+Android identifica las apps por la FIRMA del APK, no por el nombre ni por
+el package. El release de OpenYT Music se firma con una keystore propia.
+
+Si esa llave se pierde, la siguiente version (0.6.2, 0.7.0, la que sea)
+sale firmada con una llave distinta y NO se puede instalar encima de la
+que ya tiene la gente. Todos tendrian que desinstalar y reinstalar, y
+perderian sus datos. Es el unico archivo del proyecto que no se puede
+rehacer.
+
+
+ARCHIVOS
+--------
+openytmusic-release.jks    la keystore de release (alias "openytmusic")
+LEEME.txt                  este archivo
+
+
+DATOS DE LA FIRMA
+-----------------
+archivo            openytmusic-release.jks
+alias              openytmusic
+storePassword      OpenYTMusic2026
+keyPassword        OpenYTMusic2026
+algoritmo          SHA256withRSA
+valido             11 sep 2026  ->  03 sep 2056
+SHA256 (huella)    B3:7A:B8:93:74:36:DA:06:1B:86:11:44:B7:85:A9:EE:25:90:26:55:6C:77:5B:66:8C:2D:05:3B:0D:26:85:BE
+SHA256 (archivo)   A50EFB5CD064EA702E68D092A473C9BF7EE5BB93C43274EC8B10E5B6708905FB
+
+
+COMO RESTAURARLO EN LA MAQUINA NUEVA
+------------------------------------
+1) Copiar openytmusic-release.jks a la RAIZ del proyecto:
+
+       Velqi-Kt/openytmusic-release.jks
+
+   Tiene que ser ahi exactamente. app/build.gradle.kts lo busca con
+   rootProject.file("openytmusic-release.jks") y si no lo encuentra
+   el APK sale unsigned.
+
+2) Crear el archivo local.properties en la raiz del proyecto
+   (esta ignorado por git, no viene en el clon) con estas tres lineas:
+
+       sdk.dir=/ruta/a/tu/Android/Sdk
+       OYM_STORE_PASSWORD=OpenYTMusic2026
+       OYM_KEY_PASSWORD=OpenYTMusic2026
+
+   Las dos contrasenas tambien valen como variables de entorno con esos
+   mismos nombres; el build lee primero el entorno y si no, el archivo
+   (app/build.gradle.kts, signingConfigs.release).
+
+3) Compilar:
+
+       ./gradlew :app:assembleRelease
+
+   Si todo esta bien, el APK sale firmado solo. No hay que firmarlo a mano.
+
+
+COMO COMPROBAR QUE ES LA CORRECTA
+---------------------------------
+    keytool -list -v -keystore openytmusic-release.jks -storepass OpenYTMusic2026
+
+Debe salir el alias "openytmusic", valido desde el 11 de sep de 2026, y
+la huella SHA256 B3:7A:B8:93:... Si no coincide, es OTRA keystore y el
+APK no se instalara encima del actual.
+
+Tambien sirve para verificar la copia del repo:
+
+    sha256sum openytmusic-release.jks
+    (debe dar A50EFB5CD064EA702E68D092A473C9BF7EE5BB93C43274EC8B10E5B6708905FB)
+
+
+SI FALTAN ESOS DATOS
+--------------------
+El build release falla con este mensaje:
+
+    Faltan OYM_STORE_PASSWORD / OYM_KEY_PASSWORD para firmar el release.
+    Exportalas o escribelas en local.properties (no hay valor por defecto).
+
+Es a proposito: no hay contrasena por defecto en el codigo.
+
+
+OJO
+---
+Esta carpeta esta SUBIDA a GitHub a proposito y a mano (git normalmente
+ignora los .jks). Al borrarla del repo, los archivos siguen existiendo en
+el historial de git. Si en algun momento quieres limpiarlos de verdad del
+historial, hay que reescribirlo (git filter-repo) y forzar el push. No
+basta con borrar la carpeta.
