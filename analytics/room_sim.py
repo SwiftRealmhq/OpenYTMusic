@@ -135,11 +135,15 @@ class WebSocketClient:
             except json.JSONDecodeError:
                 continue
 
-    def close(self) -> None:
+    def close(self, say_bye: bool = True) -> None:
+        """Cierra el socket y, antes, avisa a la sala para que no quede fantasma."""
         try:
-            if self.sock:
-                self._send_frame(b"", opcode=0x8)
-                self.sock.close()
+            if not self.sock:
+                return
+            if say_bye:
+                self.send_json({"t": "bye"})
+            self._send_frame(b"", opcode=0x8)
+            self.sock.close()
         except OSError:
             pass
 
@@ -203,6 +207,9 @@ class SimClient:
             self.played_at = time.monotonic()
         elif kind == "chat":
             self.chat.append((message.get("name", "?"), message.get("text", "")))
+        elif kind == "ping":
+            # La app responde a los latidos del servidor para no caer por inactivo.
+            self.ws.send_json({"t": "pong"})
 
     def listen(self, timeout: float = 6.0) -> dict | None:
         """Espera un mensaje y lo aplica (como haria la app)."""
@@ -350,10 +357,20 @@ def main() -> int:
 
     print("\n7) El invitado sale: la sala sigue viva")
     guest.ws.close()
-    received = host.drain(2.0)
-    left = next((m for m in received if m.get("t") == "left"), None)
+    # La salida debe verse al instante (gracias al "bye"): se le dan 5 s de
+    # margen para no confundir un aviso lento con un aviso que no llega.
+    left = None
+    deadline = time.monotonic() + 5.0
+    while left is None and time.monotonic() < deadline:
+        received = host.drain(0.5)
+        left = next((m for m in received if m.get("t") == "left"), None)
+        time.sleep(0.2)
     failures += not check("el anfitrión ve que se fue", left is not None, (left or {}).get("name", ""))
     failures += not check("queda 1 persona en la sala", len((left or {}).get("members", [])) == 1)
+    for _ in range(10):
+        if api(base, "GET", f"/v1/room/{code}")["personas"] == 1:
+            break
+        time.sleep(0.5)
     failures += not check("la sala sigue existiendo", api(base, "GET", f"/v1/room/{code}")["personas"] == 1)
 
     print("\n8) Control desde administración")

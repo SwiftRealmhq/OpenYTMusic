@@ -20,7 +20,8 @@ Cliente -> servidor:
   {"t":"state","track":{...},"position_ms":42000,"playing":true,"action":"play"}
   {"t":"sync","position_ms":..,"playing":..}       latido para corregir deriva
   {"t":"chat","text":"esto suena brutal"}
-  {"t":"ping","at":<ms del cliente>}
+  {"t":"ping","at":<ms del cliente>}      sirve de latido: mantener vivo y medir relojes
+  {"t":"bye"}                              salida limpia (avisa al instante)
 
 Servidor -> cliente:
   {"t":"joined","code":..,"me":{..},"members":[..],"state":{..},"server_ms":..}
@@ -82,6 +83,10 @@ MAX_CONNECTIONS_PER_IP = int(os.environ.get("ROOM_MAX_CONNECTIONS_PER_IP", "8"))
 MAX_ROOMS_PER_IP_HOUR = int(os.environ.get("ROOM_MAX_PER_IP_HOUR", "20"))
 MESSAGES_PER_WINDOW = int(os.environ.get("ROOM_MESSAGES_PER_10S", "40"))
 MESSAGE_WINDOW_SECONDS = 10
+# Si un miembro no da señales de vida en este tiempo, se le saca de la sala y se
+# avisa al otro. La app manda un `ping` cada 20 s, asi que 75 s solo se cumplen
+# si de verdad desaparecio (app cerrada de golpe, red caida, telefono apagado).
+MEMBER_IDLE_SECONDS = int(os.environ.get("ROOM_MEMBER_IDLE_SECONDS", "75"))
 MAX_MESSAGE_BYTES = 8192
 MAX_CHAT_CHARS = 400
 MAX_NAME_CHARS = 24
@@ -155,6 +160,10 @@ class Member:
     socket: WebSocket
     window_start: float = field(default_factory=time.monotonic)
     window_count: int = 0
+    last_seen: float = field(default_factory=time.monotonic)
+
+    def touch(self) -> None:
+        self.last_seen = time.monotonic()
 
     def allow_message(self) -> bool:
         """Tope simple por ventana: frena a quien quiera inundar la sala."""
@@ -286,6 +295,7 @@ class RoomManager:
 
     async def join(self, room: Room, socket: WebSocket, name: str, ip_hash: str) -> Member:
         member = Member(id=uuid.uuid4().hex[:6], name=name, socket=socket)
+        member_ips[member.id] = ip_hash
         async with self.lock:
             if len(room.members) >= MAX_MEMBERS:
                 raise HTTPException(status_code=409, detail="la sala esta llena")
@@ -294,7 +304,8 @@ class RoomManager:
             self.connections_by_ip[ip_hash] = self.connections_by_ip.get(ip_hash, 0) + 1
         return member
 
-    async def leave(self, room: Room, member: Member, ip_hash: str) -> None:
+    async def leave(self, room: Room, member: Member, ip_hash: str = "") -> None:
+        ip_hash = ip_hash or member_ips.pop(member.id, "")
         async with self.lock:
             room.members.pop(member.id, None)
             if not room.members:
@@ -382,6 +393,27 @@ class RoomManager:
         except Exception:
             pass
 
+    async def sweep_idle_members(self) -> None:
+        """Saca a quien desaparecio sin despedirse.
+
+        Sin esto, si a alguien se le cierra la app de golpe, el servidor tarda
+        en notar el socket muerto y el otro se queda esperando a un fantasma.
+        """
+        monotonic_now = time.monotonic()
+        for room in list(self.rooms.values()):
+            for member in list(room.members.values()):
+                if monotonic_now - member.last_seen <= MEMBER_IDLE_SECONDS:
+                    continue
+                await self.leave(room, member)
+                try:
+                    await member.socket.close(code=1001)
+                except Exception:
+                    pass
+                await self.broadcast(
+                    room,
+                    {"t": "left", "from": member.id, "name": member.name, "members": room.public_members()},
+                )
+
     async def cleanup(self) -> None:
         """Cierra salas expiradas o vacias de mas (memoria y base)."""
         wall_now = datetime.now(timezone.utc)
@@ -435,11 +467,16 @@ class RoomManager:
 manager = RoomManager()
 router = APIRouter()
 
+# ip_hash de cada miembro: hace falta para descontar el cupo por red cuando se
+# le saca por inactividad (el finally ya no esta para pasarlo).
+member_ips: dict[str, str] = {}
+
 
 async def _cleanup_loop() -> None:
     while True:
         try:
-            await asyncio.sleep(60)
+            await asyncio.sleep(30)
+            await manager.sweep_idle_members()
             await manager.cleanup()
         except asyncio.CancelledError:
             return
@@ -572,6 +609,7 @@ async def room_socket(socket: WebSocket, code: str):
             if len(raw) > MAX_MESSAGE_BYTES:
                 await refuse("mensaje demasiado largo")
                 return
+            member.touch()
             if not member.allow_message():
                 await refuse("demasiados mensajes seguidos, espera unos segundos")
                 return
@@ -583,6 +621,11 @@ async def room_socket(socket: WebSocket, code: str):
                 continue
 
             kind = message.get("t")
+
+            if kind == "bye":
+                # Salida limpia: el aviso a la sala sale del finally de abajo, al
+                # instante, sin esperar a que el socket se de cuenta.
+                return
 
             if kind == "ping":
                 # Sirve para medir el desfase de relojes (ida y vuelta).
@@ -647,11 +690,14 @@ async def room_socket(socket: WebSocket, code: str):
     except Exception:
         pass
     finally:
-        await manager.leave(room, member, ip_hash)
-        await manager.broadcast(
-            room,
-            {"t": "left", "from": member.id, "name": member.name, "members": room.public_members()},
-        )
+        # Solo se avisa si sigue dentro: si el barrido de inactivos ya lo saco,
+        # el aviso salio de ahi y repetirlo confundiria a los que quedan.
+        if member.id in room.members:
+            await manager.leave(room, member, ip_hash)
+            await manager.broadcast(
+                room,
+                {"t": "left", "from": member.id, "name": member.name, "members": room.public_members()},
+            )
 
 
 # --------------------------------------------------------------------------- #
