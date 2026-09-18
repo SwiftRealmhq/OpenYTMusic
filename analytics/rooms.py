@@ -488,7 +488,11 @@ class RoomManager:
         room.prepare = None
         task = room.prepare_task
         room.prepare_task = None
-        if task is not None and not task.done():
+        # Nunca cancelarse a si misma: cuando el arranque lo suelta el propio
+        # temporizador de respaldo, esta corrutina ES room.prepare_task, y
+        # cancelarla cortaba el aviso justo antes de enviarlo (la sala se
+        # quedaba muda para siempre si alguien no avisaba `ready`).
+        if task is not None and task is not asyncio.current_task() and not task.done():
             task.cancel()
 
         at_ms = _now_ms()
