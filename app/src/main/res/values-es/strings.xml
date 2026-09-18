@@ -354,6 +354,11 @@
     <string name="disable_screenshot">Desactivar captura de pantalla</string>
     <string name="auto_load_more">Cargar automáticamente más canciones</string>
     <string name="disable_screenshot_desc">Cuando esta opción está activada, las capturas de pantalla y la vista de la aplicación en Recientes estará deshabilitada.</string>
+    <string name="anonymous_stats_group">Estadísticas anónimas</string>
+    <string name="anonymous_stats">Compartir estadísticas anónimas</string>
+    <string name="anonymous_stats_desc">Envía las búsquedas que haces, las canciones que suenan y un identificador de instalación aleatorio, para que el desarrollador vea cuántas personas usan la app y pueda cortar el abuso. No se envía ninguna cuenta, correo ni tu IP. Si lo apagas, la app no manda absolutamente nada.</string>
+    <string name="restricted_access_title">Acceso restringido</string>
+    <string name="restricted_access_desc">El acceso a OpenYTMusic desde esta red está restringido temporalmente por actividad inusual. Si crees que es un error, escríbenos.</string>
     <string name="auto_load_more_desc">Añade automáticamente más canciones cuando llegues al final de la cola, si es posible</string>
     <string name="other_versions">Otras versiones</string>
     <string name="add_all_to_library">Añadir todo a la biblioteca</string>

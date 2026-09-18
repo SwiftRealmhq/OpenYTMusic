@@ -7,6 +7,7 @@ import com.openytmusic.app.innertube.models.SongItem
 import com.openytmusic.app.db.entities.Song
 import com.openytmusic.app.models.MediaMetadata
 import com.openytmusic.app.models.toMediaMetadata
+import com.openytmusic.app.ui.utils.highResThumbnail
 
 val MediaItem.metadata: MediaMetadata?
     get() = localConfiguration?.tag as? MediaMetadata
@@ -21,7 +22,10 @@ fun Song.toMediaItem() = MediaItem.Builder()
             .setTitle(song.title)
             .setSubtitle(artists.joinToString { it.name })
             .setArtist(artists.joinToString { it.name })
-            .setArtworkUri(song.thumbnailUrl?.toUri())
+            // Misma portada en calidad alta que el tag: la notificacion y el
+            // reproductor comparten entonces la misma URL (y la misma entrada
+            // en la cache de Coil) en lugar de mezclar w544 con 1200.
+            .setArtworkUri(song.thumbnailUrl.highResThumbnail()?.toUri())
             .setAlbumTitle(song.albumName)
             .setMediaType(MEDIA_TYPE_MUSIC)
             .build()
@@ -38,7 +42,7 @@ fun SongItem.toMediaItem() = MediaItem.Builder()
             .setTitle(title)
             .setSubtitle(artists.joinToString { it.name })
             .setArtist(artists.joinToString { it.name })
-            .setArtworkUri(thumbnail.toUri())
+            .setArtworkUri(thumbnail.highResThumbnail()?.toUri())
             .setAlbumTitle(album?.name)
             .setMediaType(MEDIA_TYPE_MUSIC)
             .build()

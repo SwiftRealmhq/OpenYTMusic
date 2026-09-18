@@ -27,13 +27,26 @@ android {
         applicationId = "com.openytmusic.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 32
-        versionName = "0.6.1"
+        versionCode = 33
+        versionName = "0.6.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Unica fuente de verdad del sitio oficial: de aqui salen el chequeo de
         // actualizaciones (Updater) y los enlaces "visitar la web". Si algun dia cambia
         // el dominio, se cambia SOLO esta linea.
         buildConfigField("String", "SITE_URL", "\"https://openytmusic.netlify.app\"")
+        // Backend de estadisticas/control (Render). VACIO por defecto = telemetria
+        // apagada por completo: la app no hace ni una peticion de red. Se define al
+        // compilar con -PoymAnalyticsUrl=https://... o con la variable OYM_ANALYTICS_URL.
+        //
+        // Va como RECURSO y no como buildConfigField a proposito: los campos de
+        // BuildConfig son constantes de Java y Kotlin las incrusta en el bytecode,
+        // asi que una compilacion incremental puede dejar la URL vieja (o vacia)
+        // congelada dentro del APK. Un recurso se lee en tiempo de ejecucion desde
+        // el APK instalado y no tiene ese problema (ver AppVersion.kt, mismo bug).
+        val analyticsUrl = (findProperty("oymAnalyticsUrl") as String?)
+            ?: System.getenv("OYM_ANALYTICS_URL")
+            ?: ""
+        resValue("string", "analytics_url", analyticsUrl)
     }
     buildTypes {
         release {

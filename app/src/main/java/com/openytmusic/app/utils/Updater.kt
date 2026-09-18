@@ -27,7 +27,7 @@ object Updater {
         get() = runCatching { URI(BuildConfig.SITE_URL).host }.getOrNull()
 
     /**
-     * El manifiesto puede traer el APK como ruta relativa (`OpenYTMusic-0.6.1.apk`), que es lo
+     * El manifiesto puede traer el APK como ruta relativa (`OpenYTMusic-0.6.2.apk`), que es lo
      * comodo para publicar la web en cualquier dominio. Un `ACTION_VIEW` con una URI relativa no
      * abre nada, asi que aqui se completa contra la base del manifiesto.
      *

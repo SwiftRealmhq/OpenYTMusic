@@ -135,6 +135,7 @@ import com.openytmusic.app.playback.MusicService.MusicBinder
 import com.openytmusic.app.playback.PlayerConnection
 import com.openytmusic.app.playback.queues.ListQueue
 import com.openytmusic.app.ui.component.BotWallNotice
+import com.openytmusic.app.ui.component.RestrictedAccess
 import com.openytmusic.app.ui.component.SignedOutNotice
 import com.openytmusic.app.ui.component.BottomSheetMenu
 import com.openytmusic.app.ui.component.IconButton
@@ -163,6 +164,8 @@ import com.openytmusic.app.utils.applyAppLocale
 import androidx.datastore.preferences.core.edit
 import com.openytmusic.app.utils.AppUsageTracker
 import com.openytmusic.app.utils.addDayUsage
+import com.openytmusic.app.utils.AppVersion
+import com.openytmusic.app.utils.Telemetry
 import com.openytmusic.app.utils.dataStore
 import java.time.LocalDate
 import com.openytmusic.app.utils.get
@@ -206,7 +209,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
+    // Version real instalada (PackageManager). Con BuildConfig la constante se
+    // inlinaba al compilar y una compilacion incremental dejaba la version vieja
+    // dentro del APK (ver AppVersion.kt).
+    private var latestVersionName by mutableStateOf("")
+
+    private fun currentVersionName() = AppVersion.name(this)
     private var updateDialog by mutableStateOf<UpdateInfo?>(null)
 
     // Medicion del tiempo con la app en primer plano (estadisticas)
@@ -257,6 +265,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
+        // Latido diario (usuarios activos) + estado de acceso. Si el usuario
+        // apago las estadisticas, o no hay backend configurado, esto no hace
+        // ninguna peticion de red (ver Telemetry.kt).
+        Telemetry.start(this)
+
+        // Punto de partida del aviso de actualizacion: la version instalada.
+        latestVersionName = currentVersionName()
+
         // Acumula el tiempo de uso cada 30s (asi no se pierde si matan el proceso)
         lifecycleScope.launch {
             while (isActive) {
@@ -284,12 +300,21 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            // Control de acceso: el backend puede restringir una red (abuso de la
+            // API). Si eso pasa, se corta aqui y no se monta el resto de la app.
+            // Si el backend esta dormido o falla, `blocked` es false y no cambia nada.
+            val accessBlocked by Telemetry.blocked.collectAsState()
+            if (accessBlocked) {
+                RestrictedAccess()
+                return@setContent
+            }
+
             LaunchedEffect(Unit) {
                 if (System.currentTimeMillis() - Updater.lastCheckTime > 1.days.inWholeMilliseconds) {
                     Updater.getLatestVersion().onSuccess { info ->
                         latestVersionName = info.versionName
                         // Solo ofrecer descarga si la version remota es MAYOR (nunca un rollback).
-                        if (Updater.isNewerVersion(info.versionName, BuildConfig.VERSION_NAME)) {
+                        if (Updater.isNewerVersion(info.versionName, currentVersionName())) {
                             updateDialog = info
                         }
                     }
@@ -405,6 +430,9 @@ class MainActivity : ComponentActivity() {
                                     insert(SearchHistory(query = it))
                                 }
                             }
+                            // Estadistica anonima de la busqueda (respeta el switch
+                            // de Privacidad; ver Telemetry.kt).
+                            Telemetry.logSearch(this@MainActivity, it)
                         }
                     }
 
@@ -744,7 +772,7 @@ class MainActivity : ComponentActivity() {
                                         ) {
                                             BadgedBox(
                                                 badge = {
-                                                    if (Updater.isNewerVersion(latestVersionName, BuildConfig.VERSION_NAME)) {
+                                                    if (Updater.isNewerVersion(latestVersionName, currentVersionName())) {
                                                         Badge()
                                                     }
                                                 }

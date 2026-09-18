@@ -41,12 +41,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.openytmusic.app.BuildConfig
 import com.openytmusic.app.Kernel
 import com.openytmusic.app.LocalPlayerAwareWindowInsets
 import com.openytmusic.app.R
 import com.openytmusic.app.ui.component.IconButton
 import com.openytmusic.app.ui.utils.backToMain
+import com.openytmusic.app.utils.AppVersion
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -103,10 +103,11 @@ fun AboutScreen(
         ) {
             InfoRow(
                 label = stringResource(R.string.about_app_version),
-                // Version + versionCode. Esta fila lee la constante que va cocinada DENTRO
-                // del APK (no la web ni ningun archivo): es la forma de saber sin dudas que
-                // build esta instalado.
-                value = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+                // Version + versionCode leidos del PackageManager (el manifest del APK
+                // instalado). NO se usa BuildConfig: son constantes que Kotlin incrusta al
+                // compilar y una compilacion incremental puede dejarlas viejas dentro del
+                // APK (paso en 0.6.2: mostraba 0.6.1 aunque el manifest ya era 0.6.2).
+                value = AppVersion.label(LocalContext.current)
             )
             InfoRow(
                 label = stringResource(R.string.about_installed_at),

@@ -61,6 +61,13 @@ val PauseSearchHistoryKey = booleanPreferencesKey("pauseSearchHistory")
 val UseLoginForBrowse = booleanPreferencesKey("useLoginForBrowse")
 val DisableScreenshotKey = booleanPreferencesKey("disableScreenshot")
 
+// Estadisticas anonimas (usuarios activos + busquedas + reproducciones).
+// Activadas por defecto y se pueden apagar en Privacidad: si estan apagadas, la
+// app no manda absolutamente nada al backend (ver Telemetry.kt).
+val AnonymousStatsKey = booleanPreferencesKey("anonymousStats")
+val AnalyticsInstallIdKey = stringPreferencesKey("analyticsInstallId")
+val AnalyticsLastHeartbeatDayKey = longPreferencesKey("analyticsLastHeartbeatDay")
+
 val DiscordTokenKey = stringPreferencesKey("discordToken")
 val DiscordInfoDismissedKey = booleanPreferencesKey("discordInfoDismissed_v2")
 val DiscordUsernameKey = stringPreferencesKey("discordUsername")

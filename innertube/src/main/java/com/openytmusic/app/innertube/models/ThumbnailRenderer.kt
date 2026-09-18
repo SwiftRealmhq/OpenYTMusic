@@ -18,7 +18,12 @@ data class ThumbnailRenderer(
         val thumbnailCrop: String?,
         val thumbnailScale: String?,
     ) {
-        fun getThumbnailUrl() = thumbnail.thumbnails.lastOrNull()?.url
+        // La MAS GRANDE declarada, no la ultima de la lista. El API no siempre
+        // devuelve la lista ordenada de menor a mayor (hay videos donde el
+        // ultimo elemento es hqdefault, 400x225, mientras sddefault/hq720 estan
+        // antes), y quedarse con lastOrNull dejaba esas portadas borrosas.
+        fun getThumbnailUrl() = thumbnail.thumbnails
+            .maxByOrNull { (it.width ?: 0).toLong() * (it.height ?: 0) }?.url
     }
 
     @Serializable

@@ -4,7 +4,7 @@
 
 # OpenYTMusic
 
-**v0.6.1** · Cliente de YouTube Music · Material Design 3
+**v0.6.2** · Cliente de YouTube Music · Material Design 3
 
 Desarrollado por: Leo
 
@@ -218,7 +218,7 @@ BT="$ANDROID_HOME/build-tools/35.0.0"
   --ks-key-alias openytmusic \
   --ks-pass env:OYM_STORE_PASSWORD \
   --key-pass env:OYM_KEY_PASSWORD \
-  --out OpenYTMusic-0.6.1-release.apk \
+  --out OpenYTMusic-0.6.2-release.apk \
   /tmp/oym-aligned.apk
 
 # 3) Verificar la firma (imprime el certificado)

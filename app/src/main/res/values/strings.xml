@@ -380,6 +380,11 @@
     <string name="use_login_for_browse_desc">This can influence what content you see and for example shows premium-only albums if you are logged in with a Premium account</string>
     <string name="disable_screenshot">Disable screenshot</string>
     <string name="disable_screenshot_desc">When this option is on, screenshots and the app\'s view in Recents are disabled.</string>
+    <string name="anonymous_stats_group">Anonymous statistics</string>
+    <string name="anonymous_stats">Share anonymous statistics</string>
+    <string name="anonymous_stats_desc">Sends the searches you make, the songs that play and a random install ID, so the developer can see how many people use the app and block abuse. No account, email or IP is sent. Turn it off and the app sends nothing at all.</string>
+    <string name="restricted_access_title">Access restricted</string>
+    <string name="restricted_access_desc">Access to OpenYTMusic from this network is temporarily restricted because of unusual activity. If you believe this is a mistake, please contact us.</string>
     <string name="enable_lrclib">Enable LrcLib lyrics provider</string>
     <string name="enable_kugou">Enable KuGou lyrics provider</string>
     <string name="hide_explicit">Hide explicit content</string>

@@ -3,7 +3,7 @@ package com.openytmusic.app.models
 import androidx.compose.runtime.Immutable
 import com.openytmusic.app.innertube.models.SongItem
 import com.openytmusic.app.db.entities.*
-import com.openytmusic.app.ui.utils.resize
+import com.openytmusic.app.ui.utils.highResThumbnail
 import java.io.Serializable
 
 @Immutable
@@ -46,7 +46,10 @@ fun Song.toMediaMetadata() = MediaMetadata(
         )
     },
     duration = song.duration,
-    thumbnailUrl = song.thumbnailUrl,
+    // Calidad alta: este metadata es el que alimenta el reproductor, el visor a
+    // pantalla completa y la notificacion. Antes se usaba la URL guardada tal
+    // cual (w544 del API), que al estirarla a pantalla completa se veia borrosa.
+    thumbnailUrl = song.thumbnailUrl.highResThumbnail(),
     album = album?.let {
         MediaMetadata.Album(
             id = it.id,
@@ -70,7 +73,7 @@ fun SongItem.toMediaMetadata() = MediaMetadata(
         )
     },
     duration = duration ?: -1,
-    thumbnailUrl = thumbnail.resize(544, 544),
+    thumbnailUrl = thumbnail.highResThumbnail(),
     album = album?.let {
         MediaMetadata.Album(
             id = it.id,

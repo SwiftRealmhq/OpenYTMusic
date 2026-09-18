@@ -19,6 +19,7 @@ import com.openytmusic.app.extensions.getQueueWindows
 import com.openytmusic.app.extensions.metadata
 import com.openytmusic.app.playback.MusicService.MusicBinder
 import com.openytmusic.app.playback.queues.Queue
+import com.openytmusic.app.utils.Telemetry
 import com.openytmusic.app.utils.TranslationHelper
 import com.openytmusic.app.utils.dataStore
 import com.openytmusic.app.utils.reportException
@@ -34,7 +35,7 @@ import kotlinx.coroutines.flow.stateIn
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerConnection(
-    context: Context,
+    private val context: Context,
     binder: MusicBinder,
     val database: MusicDatabase,
     scope: CoroutineScope,
@@ -154,6 +155,11 @@ class PlayerConnection(
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         mediaMetadata.value = mediaItem?.metadata
+        // Estadistica anonima: que cancion empezo a sonar (respeta el switch de
+        // Privacidad y el de historial de reproduccion; ver Telemetry.kt).
+        mediaItem?.metadata?.let { metadata ->
+            Telemetry.logPlay(context, metadata.title, metadata.artists.joinToString { it.name })
+        }
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()

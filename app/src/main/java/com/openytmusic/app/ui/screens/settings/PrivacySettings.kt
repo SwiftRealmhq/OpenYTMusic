@@ -29,6 +29,7 @@ import com.openytmusic.app.innertube.YouTube
 import com.openytmusic.app.LocalDatabase
 import com.openytmusic.app.LocalPlayerAwareWindowInsets
 import com.openytmusic.app.R
+import com.openytmusic.app.constants.AnonymousStatsKey
 import com.openytmusic.app.constants.DisableScreenshotKey
 import com.openytmusic.app.constants.PauseListenHistoryKey
 import com.openytmusic.app.constants.PauseSearchHistoryKey
@@ -52,6 +53,7 @@ fun PrivacySettings(
     val (pauseSearchHistory, onPauseSearchHistoryChange) = rememberPreference(key = PauseSearchHistoryKey, defaultValue = false)
     val (useLoginForBrowse, onUseLoginForBrowseChange) = rememberPreference(key = UseLoginForBrowse, defaultValue = false)
     val (disableScreenshot, onDisableScreenshotChange) = rememberPreference(key = DisableScreenshotKey, defaultValue = false)
+    val (anonymousStats, onAnonymousStatsChange) = rememberPreference(key = AnonymousStatsKey, defaultValue = true)
 
     var showClearListenHistoryDialog by remember { mutableStateOf(false) }
     if (showClearListenHistoryDialog) {
@@ -171,6 +173,20 @@ fun PrivacySettings(
                 YouTube.useLoginForBrowse = it
                 onUseLoginForBrowseChange(it)
             }
+        )
+
+        PreferenceGroupTitle(
+            title = stringResource(R.string.anonymous_stats_group)
+        )
+
+        // Estadisticas anonimas: usuarios activos, busquedas y reproducciones.
+        // Apagado = no sale ni una peticion al backend (que es lo legitimo).
+        SwitchPreference(
+            title = { Text(stringResource(R.string.anonymous_stats)) },
+            description = stringResource(R.string.anonymous_stats_desc),
+            icon = { Icon(painterResource(R.drawable.bar_chart), null) },
+            checked = anonymousStats,
+            onCheckedChange = onAnonymousStatsChange
         )
 
         PreferenceGroupTitle(

@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import com.openytmusic.app.utils.AppVersion
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -230,7 +231,8 @@ fun SettingsScreen(
             icon = { Icon(painterResource(R.drawable.info), null) },
             onClick = { navController.navigate("settings/about") }
         )
-        if (Updater.isNewerVersion(latestVersionName, BuildConfig.VERSION_NAME)) {
+        // Version real instalada, no la constante inlinada de BuildConfig.
+        if (Updater.isNewerVersion(latestVersionName, AppVersion.name(LocalContext.current))) {
             PreferenceEntry(
                 title = {
                     Text(

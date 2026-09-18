@@ -1,0 +1,33 @@
+name: Keep analytics awake
+
+# El plan gratis de Render duerme el servicio a los 15 minutos sin trafico y
+# tarda ~1 minuto en despertar. Este cron lo visita cada 5 minutos para que la
+# app (y el chequeo de acceso) encuentren el backend siempre despierto.
+#
+# Para activarlo: Settings -> Secrets and variables -> Actions -> New repository
+# secret -> nombre ANALYTICS_URL, valor la URL del servicio (sin / al final),
+# por ejemplo https://openytmusic-analytics.onrender.com
+#
+# Nota: el repo es publico, asi que estos minutos de Actions no se cobran.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /healthz
+        env:
+          ANALYTICS_URL: ${{ secrets.ANALYTICS_URL }}
+        run: |
+          if [ -z "$ANALYTICS_URL" ]; then
+            echo "Falta el secret ANALYTICS_URL; no hay nada que visitar."
+            exit 0
+          fi
+          curl -fsS --max-time 30 "$ANALYTICS_URL/healthz" && echo "despierto"
