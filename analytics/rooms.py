@@ -23,6 +23,7 @@ Cliente -> servidor:
   {"t":"ready","seq":<ms>}                "ya tengo la cancion cargada y lista"
   {"t":"go","seq":<ms>}                   arranque manual (respaldo del servidor)
   {"t":"rename","name":"Leo"}             cambia tu apodo en la sala
+  {"t":"typing"}                           "estoy escribiendo" (no se guarda)
   {"t":"chat","text":"esto suena brutal"}
   {"t":"ping","at":<ms del cliente>}      sirve de latido: mantener vivo y medir relojes
   {"t":"bye"}                              salida limpia (avisa al instante)
@@ -36,6 +37,7 @@ Servidor -> cliente:
   {"t":"ready","from":..,"name":..,"seq":..}
   {"t":"go","seq":..,"track":{..},"position_ms":..,"playing":..,"server_ms":..}
   {"t":"renamed","name":..}
+  {"t":"typing","from":..,"name":..,"server_ms":..}
   {"t":"chat","from":..,"name":..,"text":..,"server_ms":..}
   {"t":"pong","at":<eco>,"server_ms":..}
   {"t":"left","from":..,"name":..,"members":[..],"server_ms":..}
@@ -894,6 +896,16 @@ async def room_socket(socket: WebSocket, code: str):
             if kind == "go":
                 # Respaldo: si el cliente no ve el arranque, lo pide el mismo.
                 await manager.fire_go(room, _bounded_int(message.get("seq"), 1, 1 << 62))
+                continue
+
+            if kind == "typing":
+                # "esta escribiendo": solo se retransmite, no se guarda ni se
+                # convierte en estado (el otro lo muestra unos segundos y ya).
+                await manager.broadcast(
+                    room,
+                    {"t": "typing", "from": member.id, "name": member.name},
+                    skip=member.id,
+                )
                 continue
 
             if kind == "chat":
