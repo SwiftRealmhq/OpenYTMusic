@@ -19,6 +19,10 @@ Cliente -> servidor:
   {"t":"hello","name":"Leo","install":"<uuid>"}    primer mensaje, obligatorio
   {"t":"state","track":{...},"position_ms":42000,"playing":true,"action":"play"}
   {"t":"sync","position_ms":..,"playing":..}       latido para corregir deriva
+  {"t":"prepare","seq":<ms>,"track":{..},"position_ms":0,"playing":true}
+  {"t":"ready","seq":<ms>}                "ya tengo la cancion cargada y lista"
+  {"t":"go","seq":<ms>}                   arranque manual (respaldo del servidor)
+  {"t":"rename","name":"Leo"}             cambia tu apodo en la sala
   {"t":"chat","text":"esto suena brutal"}
   {"t":"ping","at":<ms del cliente>}      sirve de latido: mantener vivo y medir relojes
   {"t":"bye"}                              salida limpia (avisa al instante)
@@ -28,11 +32,32 @@ Servidor -> cliente:
   {"t":"presence","members":[..],"server_ms":..}
   {"t":"state","from":..,"name":.., ...estado, "server_ms":..}
   {"t":"sync","from":..,"position_ms":..,"playing":..,"server_ms":..}
+  {"t":"prepare","from":..,"name":..,"seq":..,"track":{..},"position_ms":..,"playing":..}
+  {"t":"ready","from":..,"name":..,"seq":..}
+  {"t":"go","seq":..,"track":{..},"position_ms":..,"playing":..,"server_ms":..}
+  {"t":"renamed","name":..}
   {"t":"chat","from":..,"name":..,"text":..,"server_ms":..}
   {"t":"pong","at":<eco>,"server_ms":..}
   {"t":"left","from":..,"name":..,"members":[..],"server_ms":..}
   {"t":"closed","reason":..}
   {"t":"error","msg":..}
+
+Arranque en dos tiempos (prepare -> ready -> go)
+------------------------------------------------
+Cambiar de cancion no se manda como una orden cualquiera. Si cada uno empieza
+cuando su stream termina de cargar, el que carga primero suena solo y el otro
+lo pisa al entrar con un seek: se oye un reinicio. Por eso:
+
+  1. Quien cambia la cancion manda `prepare` y su propio reproductor queda EN
+     PAUSA.
+  2. Todos cargan esa cancion (tambien en pausa) y avisan `ready`.
+  3. Solo cuando el ultimo avisa, el servidor manda `go` A TODOS con la MISMA
+     hora del servidor. Cada cliente arranca en `posicion + (ahora - server_ms)`,
+     asi los dos empiezan en el mismo instante aunque tarden distinto en cargar.
+
+Nada suena hasta ese `go`: ese es el punto. Si alguien no contesta (app matada,
+red caida), el servidor suelta el `go` igual pasado ROOM_PREPARE_TIMEOUT_SECONDS
+para que una sala nunca se quede muda esperando a un fantasma.
 
 Vida de una sala
 ----------------
@@ -87,6 +112,10 @@ MESSAGE_WINDOW_SECONDS = 10
 # avisa al otro. La app manda un `ping` cada 20 s, asi que 75 s solo se cumplen
 # si de verdad desaparecio (app cerrada de golpe, red caida, telefono apagado).
 MEMBER_IDLE_SECONDS = int(os.environ.get("ROOM_MEMBER_IDLE_SECONDS", "75"))
+# Si alguien no avisa `ready` (app matada a media carga, red caida), el servidor
+# suelta el `go` igual: mas vale empezar con un poco de desfase que quedarse
+# mudos para siempre esperando a un fantasma.
+PREPARE_TIMEOUT_SECONDS = float(os.environ.get("ROOM_PREPARE_TIMEOUT_SECONDS", "10"))
 MAX_MESSAGE_BYTES = 8192
 MAX_CHAT_CHARS = 400
 MAX_NAME_CHARS = 24
@@ -142,6 +171,31 @@ def _clean_text(value: Any, limit: int) -> Optional[str]:
     return text[:limit] if text else None
 
 
+def _clean_track(track: Any) -> Optional[dict[str, Any]]:
+    """Deja de la cancion solo los campos que viajan entre los dos telefonos."""
+    if not isinstance(track, dict):
+        return None
+    clean = {
+        key: track.get(key)
+        for key in ("id", "title", "artist", "artwork", "duration_ms", "album")
+        if key in track
+    }
+    track_id = clean.get("id")
+    if not isinstance(track_id, str) or not track_id.strip():
+        return None
+    clean["id"] = track_id.strip()[:64]
+    for text_key, limit in (("title", 200), ("artist", 200), ("album", 200)):
+        if isinstance(clean.get(text_key), str):
+            clean[text_key] = clean[text_key][:limit]
+    if isinstance(clean.get("artwork"), str):
+        clean["artwork"] = clean["artwork"][:600]
+    try:
+        clean["duration_ms"] = max(0, min(int(clean.get("duration_ms") or 0), 24 * 3600 * 1000))
+    except (TypeError, ValueError):
+        clean["duration_ms"] = 0
+    return clean
+
+
 def _bounded_int(value: Any, low: int, high: int) -> int:
     try:
         number = int(value)
@@ -176,6 +230,21 @@ class Member:
 
 
 @dataclass
+class Prepare:
+    """Un cambio de cancion en dos tiempos: falta que todos digan `ready`."""
+
+    seq: int
+    by: str
+    track: dict[str, Any]
+    position_ms: int
+    playing: bool
+    ready: set[str] = field(default_factory=set)
+    # Quienes estaban en la sala cuando se pidio el cambio: alguien que entra
+    # despues no puede dejar a los demas esperando.
+    waiting: set[str] = field(default_factory=set)
+
+
+@dataclass
 class Room:
     code: str
     created_at: datetime
@@ -185,6 +254,8 @@ class Room:
     state_ms: int = 0
     empty_since: Optional[float] = None
     restored: bool = False
+    prepare: Optional[Prepare] = None
+    prepare_task: Optional[asyncio.Task] = None
 
     def public_members(self) -> list[dict[str, Any]]:
         return [{"id": member.id, "name": member.name} for member in self.members.values()]
@@ -315,9 +386,144 @@ class RoomManager:
                 self.connections_by_ip[ip_hash] = remaining
             else:
                 self.connections_by_ip.pop(ip_hash, None)
+        # Si el que se fue era el que faltaba por avisar, la sala ya puede
+        # arrancar: nadie debe quedarse esperando a alguien que ya no esta.
+        await self.maybe_go(room)
 
-    async def broadcast(self, room: Room, payload: dict[str, Any], skip: Optional[str] = None) -> None:
-        message = {**payload, "server_ms": _now_ms()}
+    # ------------------------------------------------- arranque en dos tiempos
+    async def start_prepare(
+        self,
+        room: Room,
+        member: Member,
+        seq: int,
+        track: dict[str, Any],
+        position_ms: int,
+        playing: bool,
+    ) -> None:
+        """Anota el cambio de cancion y avisa a los demas para que la carguen."""
+        if not track or not track.get("id"):
+            return
+        previous = room.prepare_task
+        if previous is not None and not previous.done():
+            previous.cancel()
+        async with self.lock:
+            room.prepare = Prepare(
+                seq=seq,
+                by=member.id,
+                track=track,
+                position_ms=position_ms,
+                playing=playing,
+                waiting=set(room.members),
+            )
+        # Mientras se prepara NADA suena: el estado guardado queda en pausa para
+        # que quien entre a media preparacion no se ponga a sonar solo.
+        await self.set_state(
+            room,
+            {
+                "track": track,
+                "position_ms": position_ms,
+                "playing": False,
+                "action": "prepare",
+                "seq": seq,
+                # La intencion (sonar o quedarse en pausa) viaja aparte porque el
+                # estado en si queda en pausa mientras se prepara.
+                "intent": playing,
+                "by": member.name,
+            },
+        )
+        room.prepare_task = asyncio.create_task(self._prepare_timeout(room, seq))
+        await self.broadcast(
+            room,
+            {
+                "t": "prepare",
+                "from": member.id,
+                "name": member.name,
+                "seq": seq,
+                "track": track,
+                "position_ms": position_ms,
+                "playing": playing,
+            },
+            skip=member.id,
+        )
+
+    async def _prepare_timeout(self, room: Room, seq: int) -> None:
+        try:
+            await asyncio.sleep(PREPARE_TIMEOUT_SECONDS)
+        except asyncio.CancelledError:
+            return
+        await self.fire_go(room, seq)
+
+    async def mark_ready(self, room: Room, member: Member, seq: int) -> None:
+        prepare = room.prepare
+        if prepare is None or prepare.seq != seq:
+            return
+        prepare.ready.add(member.id)
+        await self.broadcast(
+            room,
+            {"t": "ready", "from": member.id, "name": member.name, "seq": seq},
+            skip=member.id,
+        )
+        await self.maybe_go(room)
+
+    async def maybe_go(self, room: Room) -> None:
+        """Arranca si ya avisaron todos los que estaban cuando se pidio el cambio."""
+        prepare = room.prepare
+        if prepare is None:
+            return
+        pending = {member for member in prepare.waiting if member in room.members} - prepare.ready
+        if pending:
+            return
+        await self.fire_go(room, prepare.seq)
+
+    async def fire_go(self, room: Room, seq: int) -> None:
+        """GO para TODOS (tambien quien lo pidio) con la misma hora del servidor.
+
+        Esa hora comun es lo que hace que los dos empiecen en el mismo instante:
+        cada uno calcula `posicion + (ahora - server_ms)` con su propio reloj
+        corregido, y esa resta da el mismo momento en los dos telefonos.
+        """
+        prepare = room.prepare
+        if prepare is None or prepare.seq != seq:
+            return
+        room.prepare = None
+        task = room.prepare_task
+        room.prepare_task = None
+        if task is not None and not task.done():
+            task.cancel()
+
+        at_ms = _now_ms()
+        await self.set_state_at(
+            room,
+            {
+                "track": prepare.track,
+                "position_ms": prepare.position_ms,
+                "playing": prepare.playing,
+                "action": "go",
+                "seq": seq,
+                "by": prepare.by,
+            },
+            at_ms,
+        )
+        await self.broadcast(
+            room,
+            {
+                "t": "go",
+                "seq": seq,
+                "track": prepare.track,
+                "position_ms": prepare.position_ms,
+                "playing": prepare.playing,
+            },
+            at_ms=at_ms,
+        )
+
+    async def broadcast(
+        self,
+        room: Room,
+        payload: dict[str, Any],
+        skip: Optional[str] = None,
+        at_ms: Optional[int] = None,
+    ) -> None:
+        message = {**payload, "server_ms": at_ms or _now_ms()}
         for member in list(room.members.values()):
             if skip is not None and member.id == skip:
                 continue
@@ -328,8 +534,11 @@ class RoomManager:
                 room.members.pop(member.id, None)
 
     async def set_state(self, room: Room, state: dict[str, Any]) -> None:
+        await self.set_state_at(room, state, _now_ms())
+
+    async def set_state_at(self, room: Room, state: dict[str, Any], at_ms: int) -> None:
         room.state = state
-        room.state_ms = _now_ms()
+        room.state_ms = at_ms
         room.restored = False
         await self.persist(room)
 
@@ -337,6 +546,9 @@ class RoomManager:
         async with self.lock:
             room = self.rooms.pop(code.upper(), None)
         await self.delete(code)
+        if room is not None and room.prepare_task is not None:
+            room.prepare_task.cancel()
+            room.prepare_task = None
         if room is None:
             return None
         await self.broadcast(room, {"t": "closed", "reason": reason})
@@ -647,6 +859,39 @@ async def room_socket(socket: WebSocket, code: str):
                 )
                 continue
 
+            if kind == "rename":
+                # Cambiar el apodo dentro de la sala: sin cuentas ni nada guardado.
+                member.name = _clean_name(message.get("name"))
+                await socket.send_json({"t": "renamed", "name": member.name, "server_ms": _now_ms()})
+                await manager.broadcast(room, {"t": "presence", "members": room.public_members()})
+                continue
+
+            if kind == "prepare":
+                # Cambio de cancion en dos tiempos: todos la cargan y solo cuando
+                # el ultimo avisa, sale el `go` con una hora comun para todos.
+                track = message.get("track") if isinstance(message.get("track"), dict) else None
+                track = _clean_track(track)
+                if not track:
+                    continue
+                await manager.start_prepare(
+                    room,
+                    member,
+                    seq=_bounded_int(message.get("seq"), 1, 1 << 62),
+                    track=track,
+                    position_ms=_bounded_int(message.get("position_ms"), 0, 24 * 3600 * 1000),
+                    playing=bool(message.get("playing", True)),
+                )
+                continue
+
+            if kind == "ready":
+                await manager.mark_ready(room, member, _bounded_int(message.get("seq"), 1, 1 << 62))
+                continue
+
+            if kind == "go":
+                # Respaldo: si el cliente no ve el arranque, lo pide el mismo.
+                await manager.fire_go(room, _bounded_int(message.get("seq"), 1, 1 << 62))
+                continue
+
             if kind == "chat":
                 text = _clean_text(message.get("text"), MAX_CHAT_CHARS)
                 if text is None:
@@ -661,15 +906,9 @@ async def room_socket(socket: WebSocket, code: str):
                 action = message.get("action")
                 if action not in ALLOWED_ACTIONS:
                     continue
-                track = message.get("track") if isinstance(message.get("track"), dict) else None
+                track = _clean_track(message.get("track"))
                 if action in {"play", "track"} and not (track and track.get("id")):
                     continue
-                if track is not None:
-                    track = {
-                        key: value
-                        for key, value in track.items()
-                        if key in {"id", "title", "artist", "artwork", "duration_ms", "album"}
-                    }
                 state = {
                     "track": track if track is not None else (room.state or {}).get("track"),
                     "position_ms": _bounded_int(message.get("position_ms"), 0, 24 * 3600 * 1000),

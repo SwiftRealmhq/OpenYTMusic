@@ -13,13 +13,16 @@ Uso:
 
 Verifica, en este orden:
   1. Crear sala por HTTP y entrar los dos (hello).
-  2. Play del cliente A -> B recibe la cancion y calcula en que segundo deberia
-     estar sonando (mide la deriva real: es lo que decide si se siente sincronizado).
+  2. Cambio de cancion en dos tiempos: `prepare` -> los dos avisan `ready` -> el
+     servidor manda `go` con UNA hora para los dos. Se comprueba que el aviso de
+     carga NO pone musica, que la senal de arranque llega a ambos y que los dos
+     arrancarian con el mismo segundo (la diferencia real entre los dos).
   3. Latido `sync` a los 3 s -> la deriva se corrige sola.
   4. Pausa, seek y cambio de cancion -> B recibe cada accion.
   5. Chat en los dos sentidos.
   6. B se sale -> A ve la lista de miembros sin B (la sala sigue viva).
   7. ping/pong: mide el ida y vuelta (con eso el cliente corrige su reloj).
+  8. Control desde administracion.
 """
 
 import base64
@@ -161,6 +164,9 @@ class SimClient:
         self.members: list[dict] = []
         self.played_at: float | None = None
         self.left: dict | None = None
+        self.prepare: dict | None = None      # aviso "carga esta cancion"
+        self.go: dict | None = None           # senal de arranque comun
+        self.ready_from: list[str] = []       # quienes avisaron
 
     def connect(self) -> dict:
         self.ws.connect()
@@ -205,6 +211,22 @@ class SimClient:
         elif kind == "sync":
             self.state = {**self.state, **message}
             self.played_at = time.monotonic()
+        elif kind == "prepare":
+            # Cargar la cancion, EN PAUSA: todavia no suena nada.
+            self.prepare = message
+            self.state = {
+                **self.state,
+                "track": message.get("track"),
+                "position_ms": message.get("position_ms", 0),
+                "playing": False,
+            }
+        elif kind == "ready":
+            self.ready_from.append(message.get("name", "?"))
+        elif kind == "go":
+            # Arranque comun: aqui (y solo aqui) empieza a sonar.
+            self.go = message
+            self.state = {**self.state, **message}
+            self.played_at = time.monotonic()
         elif kind == "chat":
             self.chat.append((message.get("name", "?"), message.get("text", "")))
         elif kind == "ping":
@@ -233,6 +255,16 @@ class SimClient:
             self._absorb(message)
             received.append(message)
         return received
+
+    def go_target_ms(self) -> float | None:
+        """En qué segundo arranca con la señal común (lo que hará la app al oír `go`)."""
+        go = self.go
+        if not go:
+            return None
+        base = float(go.get("position_ms") or 0)
+        if not go.get("playing"):
+            return base
+        return base + max(self.server_now() - go.get("server_ms", self.server_now()), 0.0)
 
     def target_position_ms(self) -> float | None:
         """En que segundo deberia ir la reproduccion AHORA mismo.
@@ -279,6 +311,31 @@ def check(label: str, ok: bool, detail: str = "") -> bool:
     return ok
 
 
+def wait_for(client: "SimClient", kind: str, timeout: float = 8.0) -> dict | None:
+    """Espera un mensaje de cierto tipo (lo demas se absorbe, como en la app)."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        message = client.listen(timeout=1.0)
+        if message and message.get("t") == kind:
+            return message
+    return None
+
+
+def start_together(a: "SimClient", b: "SimClient", track: dict) -> tuple[dict | None, dict | None]:
+    """Reproduce el cambio de cancion en dos tiempos, tal como lo haria la app.
+
+    Nadie suena hasta el `go`: es exactamente lo que evita que uno arranque solo
+    y el otro lo pise al entrar.
+    """
+    seq = int(time.time() * 1000)
+    a.ws.send_json({"t": "prepare", "seq": seq, "track": track, "position_ms": 0, "playing": True})
+    b.listen()                                     # a B le llega el aviso
+    b.ws.send_json({"t": "ready", "seq": seq})    # B la cargo (en la app: buffering)
+    a.listen()                                     # a A le llega el ready
+    a.ws.send_json({"t": "ready", "seq": seq})    # A tambien estaba listo
+    return wait_for(a, "go"), wait_for(b, "go")
+
+
 def main() -> int:
     base = (sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8000").rstrip("/")
     ws_base = base.replace("https://", "wss://").replace("http://", "ws://")
@@ -301,13 +358,38 @@ def main() -> int:
     failures += not check("la sala reporta 2 conectados", api(base, "GET", f"/v1/room/{code}")["personas"] == 2)
     failures += not check("el reloj se calibró (ping/pong)", host.rtt_ms < 1000, f"ida y vuelta {host.rtt_ms:.0f} ms")
 
-    print("\n2) El anfitrión pone música (play en el segundo 0)")
+    print("\n2) Cambio de canción en dos tiempos: prepare -> ready -> go")
     track = {"id": "dQw4w9WgXcQ", "title": "Prueba de sincronía", "artist": "OpenYTMusic", "duration_ms": 213000}
-    host.ws.send_json({"t": "state", "track": track, "position_ms": 0, "playing": True, "action": "play"})
+    seq = int(time.time() * 1000)
+    host.ws.send_json({"t": "prepare", "seq": seq, "track": track, "position_ms": 0, "playing": True})
     message = guest.listen()
-    failures += not check("el invitado recibe el estado", (message or {}).get("t") == "state")
-    failures += not check("misma canción", (guest.state.get("track") or {}).get("id") == track["id"])
-    failures += not check("llega como sonando", guest.state.get("playing") is True)
+    failures += not check("el invitado recibe el aviso de carga", (message or {}).get("t") == "prepare")
+    failures += not check("llega la canción a cargar", (guest.prepare or {}).get("track", {}).get("id") == track["id"])
+    failures += not check("el aviso NO pone música (nada suena todavía)", guest.state.get("playing") is False)
+    failures += not check("el aviso guarda la intención (sonar al arrancar)", (guest.prepare or {}).get("playing") is True)
+
+    guest.ws.send_json({"t": "ready", "seq": seq})
+    message = host.listen()
+    failures += not check("el anfitrión ve que el invitado está listo", (message or {}).get("t") == "ready")
+    failures += not check("con uno solo todavía no arranca", host.go is None)
+    host.ws.send_json({"t": "ready", "seq": seq})
+
+    go_host = wait_for(host, "go")
+    go_guest = wait_for(guest, "go")
+    failures += not check("la señal de arranque llega a los dos", bool(go_host) and bool(go_guest))
+    failures += not check("soy el anfitrión, no me pierdo el arranque", bool(go_host))
+    failures += not check(
+        "los dos arrancan con la MISMA hora del servidor",
+        bool(go_host) and bool(go_guest) and go_host.get("server_ms") == go_guest.get("server_ms"),
+    )
+    failures += not check("misma canción en los dos", (guest.state.get("track") or {}).get("id") == track["id"])
+    failures += not check("ahora sí suena", guest.state.get("playing") is True)
+    skew = abs((host.go_target_ms() or 0) - (guest.go_target_ms() or 0))
+    failures += not check(
+        f"los dos empezarían con {skew:.0f} ms de diferencia",
+        skew < DRIFT_NOTICEABLE_MS,
+        "imperceptible" if skew < DRIFT_NOTICEABLE_MS else "se notaría al escuchar",
+    )
     drift = abs(guest.target_position_ms() or 0)
     failures += not check(
         f"el invitado calcularía el segundo {drift / 1000:.2f} (deriva {drift:.0f} ms)",
@@ -332,9 +414,9 @@ def main() -> int:
     failures += not check("el invitado salta al segundo 90", abs((guest.state.get("position_ms") or 0) - 90000) < 500)
 
     new_track = {"id": "otraCancion1", "title": "Otra canción", "artist": "Otro", "duration_ms": 180000}
-    host.ws.send_json({"t": "state", "track": new_track, "position_ms": 0, "playing": True, "action": "track"})
-    guest.listen()
-    failures += not check("el invitado cambia de canción", (guest.state.get("track") or {}).get("id") == new_track["id"])
+    go_host, go_guest = start_together(host, guest, new_track)
+    failures += not check("el invitado cambia de canción con el mismo arranque", (guest.state.get("track") or {}).get("id") == new_track["id"])
+    failures += not check("y sin quedarse sin señal de arranque", bool(go_host) and bool(go_guest))
 
     print("\n5) El invitado también controla (los dos mandan)")
     guest.ws.send_json({"t": "state", "position_ms": 0, "playing": False, "action": "pause"})
