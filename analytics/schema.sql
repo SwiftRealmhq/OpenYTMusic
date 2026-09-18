@@ -46,6 +46,18 @@ CREATE TABLE IF NOT EXISTS bans (
     banned_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Salas de escucha compartida. El estado vivo esta en memoria del proceso; esta
+-- tabla es solo el respaldo para que un reinicio del servicio no corte la
+-- sesion. No guarda usuarios ni chat: solo la cancion y el segundo.
+CREATE TABLE IF NOT EXISTS rooms (
+    code       TEXT PRIMARY KEY,
+    state      JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS rooms_expires_idx ON rooms (expires_at);
 CREATE INDEX IF NOT EXISTS searches_created_at_idx ON searches (created_at DESC);
 CREATE INDEX IF NOT EXISTS searches_install_idx ON searches (install_id);
 CREATE INDEX IF NOT EXISTS plays_created_at_idx ON plays (created_at DESC);

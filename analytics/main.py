@@ -42,6 +42,8 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 from pydantic import BaseModel, Field
 
+import rooms
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 IP_SALT = os.environ.get("IP_SALT", "openytmusic")
@@ -75,7 +77,7 @@ def client_ip(request: Request) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global pool
-    if DATABASE_URL:
+    if DATABASE_URL:  # noqa: SIM102
         # dict_row: todas las consultas devuelven diccionarios, que es lo que
         # espera el CLI (y serializa directo a JSON).
         pool = ConnectionPool(
@@ -88,12 +90,27 @@ async def lifespan(app: FastAPI):
         with pool.connection() as connection:
             connection.execute(SCHEMA_FILE.read_text())
             connection.commit()
+
+    # Salas de escucha compartida: se les presta el pool, el hash de IP y el
+    # chequeo de baneos (asi rooms.py no importa este modulo).
+    rooms.configure(
+        pool_getter=lambda: pool,
+        ban_checker=is_banned,
+        ip_of=client_ip,
+        hash_ip=hash_ip,
+        admin_check=require_admin,
+    )
+    rooms.start_background_tasks()
+
     yield
+
+    await rooms.stop_background_tasks()
     if pool is not None:
         pool.close()
 
 
 app = FastAPI(title="OpenYTMusic analytics", version="1.0", lifespan=lifespan)
+app.include_router(rooms.router)
 
 
 # --------------------------------------------------------------------------- #

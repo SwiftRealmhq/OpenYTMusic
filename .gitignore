@@ -1,5 +1,11 @@
 # Built application files
 *.apk
+
+# Backend de estadisticas (Python): bytecode y entornos locales
+__pycache__/
+*.py[cod]
+.venv/
+venv/
 *.aar
 *.ap_
 *.aab
