@@ -83,14 +83,53 @@ class WebSocketClient:
         self.buffer = rest
         return head + marker
 
-    def _read_exactly(self, count: int) -> bytes:
-        while len(self.buffer) < count:
-            chunk = self.sock.recv(65536) if self.sock else b""
-            if not chunk:
-                raise RuntimeError("conexion cerrada")
-            self.buffer += chunk
-        data, self.buffer = self.buffer[:count], self.buffer[count:]
-        return data
+    # Centinelas del parser: "falta informacion" y "frame de control".
+    NEED_MORE = object()
+    CONTROL = object()
+
+    def _parse_buffered(self):
+        """Lee un frame COMPLETO del buffer, o pide mas datos sin consumir nada.
+
+        Importante: si un frame se corta a medias (porque vencio el timeout)
+        no se consume ni un byte. Consumirlo desincronizaba el cliente de prueba
+        y hacia que despues "no llegara" un mensaje que si habia llegado.
+        """
+        buf = self.buffer
+        if len(buf) < 2:
+            return self.NEED_MORE
+        opcode = buf[0] & 0x0F
+        masked = bool(buf[1] & 0x80)
+        length = buf[1] & 0x7F
+        offset = 2
+        if length == 126:
+            if len(buf) < 4:
+                return self.NEED_MORE
+            length = struct.unpack("!H", buf[2:4])[0]
+            offset = 4
+        elif length == 127:
+            if len(buf) < 10:
+                return self.NEED_MORE
+            length = struct.unpack("!Q", buf[2:10])[0]
+            offset = 10
+        mask_length = 4 if masked else 0
+        if len(buf) < offset + mask_length + length:
+            return self.NEED_MORE
+        mask = buf[offset:offset + mask_length]
+        payload = buf[offset + mask_length:offset + mask_length + length]
+        self.buffer = buf[offset + mask_length + length:]
+        if mask:
+            payload = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
+        if opcode == 0x8:
+            return None
+        if opcode == 0x9:
+            self._send_frame(payload, opcode=0xA)
+            return self.CONTROL
+        if opcode in (0xA, 0x0):
+            return self.CONTROL
+        try:
+            return json.loads(payload)
+        except json.JSONDecodeError:
+            return self.CONTROL
 
     def send_json(self, payload: dict) -> None:
         self._send_frame(json.dumps(payload).encode())
@@ -114,29 +153,16 @@ class WebSocketClient:
         if self.sock:
             self.sock.settimeout(timeout)
         while True:
-            first = self._read_exactly(2)
-            opcode = first[0] & 0x0F
-            masked = bool(first[1] & 0x80)
-            length = first[1] & 0x7F
-            if length == 126:
-                length = struct.unpack("!H", self._read_exactly(2))[0]
-            elif length == 127:
-                length = struct.unpack("!Q", self._read_exactly(8))[0]
-            mask = self._read_exactly(4) if masked else None
-            payload = self._read_exactly(length)
-            if mask:
-                payload = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
-            if opcode == 0x8:
-                return None
-            if opcode == 0x9:  # ping del servidor
-                self._send_frame(payload, opcode=0xA)
+            frame = self._parse_buffered()
+            if frame is self.NEED_MORE:
+                chunk = self.sock.recv(65536) if self.sock else b""
+                if not chunk:
+                    raise RuntimeError("conexion cerrada")
+                self.buffer += chunk
                 continue
-            if opcode in (0xA, 0x0):
+            if frame is self.CONTROL:
                 continue
-            try:
-                return json.loads(payload)
-            except json.JSONDecodeError:
-                continue
+            return frame
 
     def close(self, say_bye: bool = True) -> None:
         """Cierra el socket y, antes, avisa a la sala para que no quede fantasma."""
@@ -281,6 +307,34 @@ class SimClient:
         return float(state["position_ms"]) + max(elapsed, 0.0)
 
 
+def check_prepare_timeout(base: str, ws_base: str) -> int:
+    """Red de seguridad: si uno nunca avisa `ready`, la sala NO se queda muda."""
+    print("\n9) Nadie avisa `ready`: el servidor arranca solo (prueba lenta)")
+    code = api(base, "POST", "/v1/room")["code"]
+    url = f"{ws_base}/v1/room/{code}/ws"
+    host = SimClient(url, "Anfitrión")
+    guest = SimClient(url, "Invitado")
+    host.connect()
+    guest.connect()
+    seq = int(time.time() * 1000)
+    track = {"id": "nadieAvisa1", "title": "Nadie avisa", "artist": "Prueba", "duration_ms": 120000}
+    host.ws.send_json({"t": "prepare", "seq": seq, "track": track, "position_ms": 0, "playing": True})
+    guest.listen()
+    host.ws.send_json({"t": "ready", "seq": seq})   # el invitado nunca avisa
+    started = time.monotonic()
+    go = wait_for(host, "go", timeout=20)
+    elapsed = time.monotonic() - started
+    failures = 0
+    failures += not check(f"el arranque sale solo en {elapsed:.1f} s", bool(go))
+    failures += not check("y sale sonando (no en pausa)", bool(go) and go.get("playing") is True)
+    host.ws.close()
+    guest.ws.close()
+    token = load_token()
+    if token:
+        api(base, "DELETE", f"/admin/room/{code}", token)
+    return failures
+
+
 def load_token() -> str:
     """Token de administracion: de las variables de entorno o del config del CLI."""
     token = os.environ.get("OYM_ADMIN_TOKEN", "").strip()
@@ -331,7 +385,7 @@ def start_together(a: "SimClient", b: "SimClient", track: dict) -> tuple[dict | 
     a.ws.send_json({"t": "prepare", "seq": seq, "track": track, "position_ms": 0, "playing": True})
     b.listen()                                     # a B le llega el aviso
     b.ws.send_json({"t": "ready", "seq": seq})    # B la cargo (en la app: buffering)
-    a.listen()                                     # a A le llega el ready
+    wait_for(a, "ready")                           # a A le llega el ready
     a.ws.send_json({"t": "ready", "seq": seq})    # A tambien estaba listo
     return wait_for(a, "go"), wait_for(b, "go")
 
@@ -369,8 +423,8 @@ def main() -> int:
     failures += not check("el aviso guarda la intención (sonar al arrancar)", (guest.prepare or {}).get("playing") is True)
 
     guest.ws.send_json({"t": "ready", "seq": seq})
-    message = host.listen()
-    failures += not check("el anfitrión ve que el invitado está listo", (message or {}).get("t") == "ready")
+    message = wait_for(host, "ready")
+    failures += not check("el anfitrión ve que el invitado está listo", bool(message))
     failures += not check("con uno solo todavía no arranca", host.go is None)
     host.ws.send_json({"t": "ready", "seq": seq})
 
@@ -439,14 +493,9 @@ def main() -> int:
 
     print("\n7) El invitado sale: la sala sigue viva")
     guest.ws.close()
-    # La salida debe verse al instante (gracias al "bye"): se le dan 5 s de
+    # La salida debe verse al instante (gracias al "bye"): se le dan 6 s de
     # margen para no confundir un aviso lento con un aviso que no llega.
-    left = None
-    deadline = time.monotonic() + 5.0
-    while left is None and time.monotonic() < deadline:
-        received = host.drain(0.5)
-        left = next((m for m in received if m.get("t") == "left"), None)
-        time.sleep(0.2)
+    left = wait_for(host, "left", timeout=6)
     failures += not check("el anfitrión ve que se fue", left is not None, (left or {}).get("name", ""))
     failures += not check("queda 1 persona en la sala", len((left or {}).get("members", [])) == 1)
     for _ in range(10):
@@ -464,6 +513,10 @@ def main() -> int:
         print("  [salta] sin token de administración (OYM_ADMIN_TOKEN o ~/.oym-analytics.json)")
 
     host.ws.close()
+
+    # La prueba del temporizador tarda 10 s: se pide aparte con OYM_TEST_SLOW=1.
+    if os.environ.get("OYM_TEST_SLOW"):
+        failures += check_prepare_timeout(base, ws_base)
 
     print(f"\n{'TODO CORRECTO' if failures == 0 else f'{failures} COMPROBACIONES FALLIDAS'}")
     print(f"(ida y vuelta del servidor: {host.rtt_ms:.0f} ms)")
