@@ -47,6 +47,22 @@ android {
             ?: System.getenv("OYM_ANALYTICS_URL")
             ?: ""
         resValue("string", "analytics_url", analyticsUrl)
+
+        // Aplicacion de Discord para el Rich Presence. Antes estaba hardcodeado el ID
+        // de InnerTune (1271273225120125040), asi que la tarjeta salia con SU nombre y
+        // SU logo: apareciamos como otro cliente. Ahora es propio y configurable.
+        //
+        // Vacio = Rich Presence desactivado (mejor sin tarjeta que con la identidad de
+        // otro). Se define en gradle.properties (oymDiscordAppId) o al compilar con
+        // -PoymDiscordAppId=... / OYM_DISCORD_APP_ID=...
+        //
+        // Va como RECURSO por el mismo motivo que la URL del backend: los campos de
+        // BuildConfig son constantes que Kotlin incrusta al compilar y una compilacion
+        // incremental puede dejarlas congeladas dentro del APK.
+        val discordAppId = (findProperty("oymDiscordAppId") as String?)
+            ?: System.getenv("OYM_DISCORD_APP_ID")
+            ?: ""
+        resValue("string", "discord_app_id", discordAppId.trim())
     }
     buildTypes {
         release {
@@ -197,6 +213,8 @@ dependencies {
     implementation(libs.media3)
     implementation(libs.media3.session)
     implementation(libs.media3.okhttp)
+    // Cliente HTTP propio: lo usan las salas de escucha compartida (WebSocket).
+    implementation(libs.okhttp)
 
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)

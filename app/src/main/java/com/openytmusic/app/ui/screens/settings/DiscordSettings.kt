@@ -60,6 +60,7 @@ import com.openytmusic.app.constants.DiscordInfoDismissedKey
 import com.openytmusic.app.constants.DiscordNameKey
 import com.openytmusic.app.constants.DiscordTokenKey
 import com.openytmusic.app.constants.DiscordUsernameKey
+import com.openytmusic.app.constants.ClearRpcOnExitKey
 import com.openytmusic.app.constants.EnableDiscordRPCKey
 import com.openytmusic.app.db.entities.Song
 import com.openytmusic.app.ui.component.IconButton
@@ -102,6 +103,7 @@ fun DiscordSettings(
     }
 
     val (discordRPC, onDiscordRPCChange) = rememberPreference(key = EnableDiscordRPCKey, defaultValue = true)
+    val (clearRpcOnExit, onClearRpcOnExitChange) = rememberPreference(key = ClearRpcOnExitKey, defaultValue = true)
 
     val isLoggedIn = remember(discordToken) {
         discordToken != ""
@@ -157,6 +159,17 @@ fun DiscordSettings(
             checked = discordRPC,
             onCheckedChange = onDiscordRPCChange,
             isEnabled = isLoggedIn
+        )
+
+        // Al cerrar la app: borrar la tarjeta de Discord. Sin esto, si el cierre no
+        // limpia la presencia, la tarjeta se queda "zombie" en el perfil mostrando
+        // una cancion que ya no suena.
+        SwitchPreference(
+            title = { Text(stringResource(R.string.clear_discord_rpc_on_exit)) },
+            description = stringResource(R.string.clear_discord_rpc_on_exit_desc),
+            checked = clearRpcOnExit,
+            onCheckedChange = onClearRpcOnExitChange,
+            isEnabled = isLoggedIn && discordRPC
         )
 
         PreferenceGroupTitle(

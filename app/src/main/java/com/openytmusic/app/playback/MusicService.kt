@@ -1,6 +1,10 @@
 package com.openytmusic.app.playback
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -67,7 +71,20 @@ import com.openytmusic.app.constants.AutoLoadMoreKey
 import com.openytmusic.app.constants.AutoSkipNextOnErrorKey
 import com.openytmusic.app.constants.BotWallDetectedKey
 import com.openytmusic.app.constants.DiscordTokenKey
+import com.openytmusic.app.constants.ClearRpcOnExitKey
 import com.openytmusic.app.constants.EnableDiscordRPCKey
+import com.openytmusic.app.utils.ListeningRoom
+import com.openytmusic.app.utils.RemotePlayback
+import com.openytmusic.app.utils.RemoteSync
+import com.openytmusic.app.utils.RoomGo
+import com.openytmusic.app.utils.RoomPrepareOrder
+import com.openytmusic.app.utils.RoomSnapshot
+import com.openytmusic.app.utils.RoomStatus
+import com.openytmusic.app.utils.RoomTrack
+import com.openytmusic.app.models.MediaMetadata
+import com.openytmusic.app.extensions.metadata
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.abs
 import com.openytmusic.app.constants.HideExplicitKey
 import com.openytmusic.app.constants.MediaSessionConstants.CommandToggleLibrary
 import com.openytmusic.app.constants.MediaSessionConstants.CommandToggleLike
@@ -210,6 +227,13 @@ class MusicService : MediaLibraryService(),
     private var lastRpcPlaying: Boolean? = null
     private var lastRpcSongId: String? = null
 
+    /** Se levanta al cerrar el servicio: a partir de ahi no se manda ninguna
+     *  presencia mas. Sin esto, el heartbeat de 3 s podia reenviar la ultima
+     *  cancion DESPUES del clearPresence de onDestroy y dejaba la tarjeta
+     *  "zombie" en Discord (el bug de la cancion que no se va nunca). */
+    @Volatile
+    private var rpcShuttingDown = false
+
     private fun isActuallyPlaying(): Boolean =
         player.playWhenReady && (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING)
 
@@ -218,6 +242,7 @@ class MusicService : MediaLibraryService(),
      *  estado REALMENTE cambio. Mata los rebotes de metadata del player al
      *  saltar canciones rapido (el bug de la cancion vieja en el RPC). */
     private fun syncDiscordPresence(force: Boolean = false) {
+        if (rpcShuttingDown) return
         val rpc = discordRpc ?: return
         val song = currentSong.value ?: return
         val playing = isActuallyPlaying()
@@ -233,6 +258,566 @@ class MusicService : MediaLibraryService(),
             Log.d("VelqiRPC", "enviando presencia playing=$playing pos=${pos}ms")
             rpc.updateSong(song, pos, playing)
         }
+    }
+
+    // ------------------------------------------------------ salas compartidas --
+    // Escuchar musica con alguien mas. El socket vive AQUI, no en la pantalla:
+    // asi la sincronizacion sigue viva con la app en segundo plano o el telefono
+    // bloqueado, que es cuando de verdad se escucha musica.
+    //
+    // Regla de oro: todo lo que cambia por una orden de la sala se aplica EN
+    // SILENCIO y de una en una. Antes cada movimiento del player rebotaba a la
+    // sala como si fuera una accion del usuario, y de ahi salia el bucle de
+    // "empieza sola, se reinicia, se asienta" al cambiar de cancion.
+    val roomState = MutableStateFlow(RoomSnapshot())
+
+    private var listeningRoom: ListeningRoom? = null
+
+    /** Cuantas aplicaciones remotas hay en vuelo ahora mismo. */
+    private val applyingRemoteCount = AtomicInteger(0)
+
+    /** Silencio hasta esta hora (reloj local): el player avisa de sus cambios un
+     *  poco DESPUES de que termina de aplicarse la orden del otro, y sin esta
+     *  ventana esos avisos volvian a la sala como si fueran del usuario. */
+    @Volatile
+    private var outboundSilencedUntil = 0L
+
+    /** Aplicacion remota en curso (cargar cancion + colocar reproduccion). */
+    @Volatile
+    private var remoteApplyJob: Job? = null
+
+    /** Cambio de cancion en dos tiempos: nada suena hasta que los dos avisen. */
+    @Volatile
+    private var roomPreparing = false
+
+    /** Si el cambio en curso lo pedi yo (y no el otro). Con esto, dos toques
+     *  seguidos en "siguiente" no se pisan: gana el ultimo. */
+    @Volatile
+    private var roomLocalPrepare = false
+
+    /** La pantalla de la sala esta abierta: si lo esta, no hace falta avisar de
+     *  lo que ya estoy viendo. */
+    @Volatile
+    var roomScreenVisible = false
+
+    /** Ultimo play/pausa que mande: un toque repetido manda UN aviso, no una
+     *  tormenta de mensajes que el otro tenga que aplicar uno por uno. */
+    @Volatile
+    private var lastControlSentAt = 0L
+
+    /**
+     * Una pausa/play que llego MIENTRAS se cargaba la cancion: se guarda y se
+     * aplica justo despues del arranque comun, para que no se pierda.
+     */
+    @Volatile
+    private var pendingControl: PendingControl? = null
+
+    private data class PendingControl(val positionMs: Long, val playing: Boolean, val serverMs: Long)
+
+    /** Quienes estaban en la sala la ultima vez (para avisar de las entradas). */
+    private var lastRoomNames: List<String> = emptyList()
+
+    /** Ultima cancion ya preparada o aplicada: evita cargarla dos veces (eso era
+     *  lo que reiniciaba la cancion varias veces seguidas al cambiarla). */
+    @Volatile
+    private var roomLastTrackId: String? = null
+
+    @Volatile
+    private var roomLastTrackAt = 0L
+
+    /** Si estamos corrigiendo la deriva con la velocidad (para restaurarla). */
+    @Volatile
+    private var roomSpeedAdjusted = false
+
+    fun isInRoom(): Boolean = listeningRoom?.state?.value?.isConnected == true
+
+    /** Crea una sala y devuelve el codigo para compartir. */
+    fun createRoom(name: String, onResult: (Result<String>) -> Unit) {
+        freshRoom(name).createRoom(onResult)
+    }
+
+    /** Entra a una sala con el codigo que te pasaron. */
+    fun joinRoom(code: String, name: String) {
+        freshRoom(name).joinRoom(code)
+    }
+
+    fun leaveRoom() {
+        val room = listeningRoom ?: return
+        room.leave()
+        listeningRoom = null
+        roomPreparing = false
+        roomLocalPrepare = false
+        remoteApplyJob?.cancel()
+        restoreRoomSpeed()
+        roomState.value = RoomSnapshot()
+    }
+
+    fun sendRoomChat(text: String) {
+        listeningRoom?.sendChat(text)
+    }
+
+    /** Cambia mi apodo en la sala (sin cuenta: solo para esta sesion). */
+    fun renameInRoom(newName: String) {
+        listeningRoom?.rename(newName)
+    }
+
+    /** "Estoy escribiendo en el chat de la sala". */
+    fun sendRoomTyping() {
+        listeningRoom?.sendTyping()
+    }
+
+    /** (Re)crea el cliente de sala. Si habia una sala abierta, la cierra antes. */
+    private fun freshRoom(name: String): ListeningRoom {
+        listeningRoom?.close()
+        val room = ListeningRoom(
+            context = applicationContext,
+            name = name.trim().ifEmpty { "Alguien" },
+            onSnapshot = { snapshot ->
+                roomState.value = snapshot
+                // Aviso de entrada: alguien nuevo en la sala (yo no cuento).
+                val others = snapshot.members.filterNot { it.isMe }.map { it.name }
+                if (snapshot.isConnected && others.size > lastRoomNames.size) {
+                    (others - lastRoomNames.toSet()).firstOrNull()?.let { who ->
+                        notifyRoomEvent(
+                            title = getString(R.string.listening_room),
+                            text = getString(R.string.listening_room_notice_joined, who),
+                        )
+                    }
+                }
+                lastRoomNames = others
+            },
+        )
+        // OJO, esto era el bug de verdad: los mensajes de la sala llegan en el
+        // hilo de RED (OkHttp) y ExoPlayer solo se puede tocar desde el hilo
+        // principal. Tocar el player ahi lanzaba "Player is accessed on the
+        // wrong thread", la excepcion se tragaba y el mensaje se PERDIA: la sala
+        // parecia no recibir nada (nunca sonaba y el otro iba adelantado).
+        // Ahora todo pasa por `scope`, que es el hilo principal.
+        room.onRejoined = {
+            scope.launch {
+                roomPreparing = false
+                roomLocalPrepare = false
+            }
+        }
+        room.onEnteredRoom = { track -> scope.launch { enteredRoom(track) } }
+        room.onChat = { message ->
+            if (!message.fromMe) {
+                // Fuera de la sala (o en otra pantalla) avisa como una mensajeria.
+                notifyRoomEvent(
+                    title = getString(R.string.listening_room_notice_chat_title, name.trim().ifEmpty { "Alguien" }, message.name),
+                    text = message.text,
+                )
+            }
+        }
+        room.onRemotePlayback = { playback -> scope.launch { applyRemotePlayback(playback) } }
+        room.onRemoteSync = { sync -> scope.launch { applyRemoteSync(sync) } }
+        room.onPrepare = { order -> scope.launch { prepareFromRoom(order) } }
+        room.onGo = { go -> scope.launch { startTogetherFromRoom(go) } }
+        room.onAdopt = { track, position, playing, serverMs ->
+            scope.launch { adoptRoomTrack(track, position, playing, serverMs) }
+        }
+        room.onClosed = { reason ->
+            scope.launch {
+                listeningRoom = null
+                roomPreparing = false
+                roomLocalPrepare = false
+                restoreRoomSpeed()
+                roomState.value = roomState.value.copy(status = RoomStatus.ERROR, error = reason)
+            }
+        }
+        roomLastTrackId = null
+        listeningRoom = room
+        return room
+    }
+
+    /** Solo se le habla a la sala cuando no estamos aplicando nada de ella. */
+    private fun canTalkToRoom(): Boolean {
+        val room = listeningRoom ?: return false
+        if (!room.state.value.isConnected) return false
+        if (roomPreparing) return false
+        if (applyingRemoteCount.get() > 0) return false
+        return System.currentTimeMillis() >= outboundSilencedUntil
+    }
+
+    private fun silenceOutbound(ms: Long = ROOM_ECHO_GUARD_MS) {
+        outboundSilencedUntil = System.currentTimeMillis() + ms
+    }
+
+    /**
+     * Aviso de la sala (chat o alguien que entra). Se muestra solo cuando NO
+     * estas mirando la sala: así llega igual si estas en otra pantalla de la app
+     * o con ella de fondo, como cualquier mensajeria.
+     */
+    private fun notifyRoomEvent(title: String, text: String) {
+        if (roomScreenVisible) return
+        val manager = runCatching { getSystemService<NotificationManager>() }.getOrNull() ?: return
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                manager.getNotificationChannel(ROOM_CHANNEL_ID) == null
+            ) {
+                manager.createNotificationChannel(
+                    NotificationChannel(
+                        ROOM_CHANNEL_ID,
+                        getString(R.string.listening_room),
+                        NotificationManager.IMPORTANCE_HIGH,
+                    )
+                )
+            }
+            val notification = NotificationCompat.Builder(this, ROOM_CHANNEL_ID)
+                .setSmallIcon(R.drawable.small_icon)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setAutoCancel(true)
+                .setContentIntent(
+                    PendingIntent.getActivity(
+                        this,
+                        0,
+                        Intent(this, MainActivity::class.java),
+                        PendingIntent.FLAG_IMMUTABLE,
+                    )
+                )
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+            manager.notify(ROOM_NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun roomTrackOf(metadata: MediaMetadata): RoomTrack = RoomTrack(
+        id = metadata.id,
+        title = metadata.title,
+        artist = metadata.artists.joinToString { it.name },
+        artwork = metadata.thumbnailUrl,
+        durationMs = metadata.duration.toLong() * 1000,
+    )
+
+    /**
+     * Corre una aplicacion remota de una en una: si llega otra mientras la
+     * anterior carga, la reemplaza. Antes se apilaban y cada una volvia a cargar
+     * la cancion desde cero: ese era el bucle de "empieza sola varias veces".
+     */
+    private fun launchRemote(block: suspend () -> Unit) {
+        remoteApplyJob?.cancel()
+        remoteApplyJob = scope.launch {
+            applyingRemoteCount.incrementAndGet()
+            silenceOutbound()
+            try {
+                block()
+            } finally {
+                applyingRemoteCount.decrementAndGet()
+                silenceOutbound()
+            }
+        }
+    }
+
+    /** En que segundo deberia ir AHORA, contando lo que tardo el mensaje. */
+    private fun roomGoalPosition(positionMs: Long, playing: Boolean, serverMs: Long): Long {
+        val base = positionMs.coerceAtLeast(0L)
+        if (!playing) return base
+        val room = listeningRoom ?: return base
+        return (base + (room.serverNow() - serverMs) + ROOM_APPLY_LATENCY_MS).coerceAtLeast(0L)
+    }
+
+    /** Entre a la sala: si no hay nada puesto, lo que sonaba antes se detiene. */
+    private fun enteredRoom(track: RoomTrack?) {
+        roomPreparing = false
+        roomLocalPrepare = false
+        if (track == null) {
+            // La sala manda: lo que estuviera sonando en el telefono se para, para
+            // que los dos oigan exactamente lo mismo y no se mezcle con la sala.
+            // Se calla el aviso a proposito: mi pausa no es una orden para el otro.
+            silenceOutbound()
+            runCatching { player.playWhenReady = false }
+        }
+    }
+
+    // --------------------------------------------- cambio de cancion
+    /**
+     * Puse una cancion yo (siguiente, la toque en el reproductor, o sono sola).
+     *
+     * NO suena todavia: se pausa, se avisa a la sala y los dos la cargan. Cuando
+     * el ultimo esta listo, el arranque sale para los dos a la vez. Asi no se oye
+     * a uno empezar y al otro reiniciarlo encima (el bucle de repeticiones).
+     */
+    private fun notifyRoomTrackChange(metadata: MediaMetadata) {
+        val room = listeningRoom ?: return
+        if (!room.state.value.isConnected) return
+        if (applyingRemoteCount.get() > 0) return
+        if (System.currentTimeMillis() < outboundSilencedUntil) return
+        val track = roomTrackOf(metadata)
+        if (roomLastTrackId == track.id &&
+            System.currentTimeMillis() - roomLastTrackAt < ROOM_TRACK_DEDUPE_MS
+        ) {
+            return
+        }
+        // Si ya habia un cambio cargando, gana este: el que suena manda.
+        if (roomPreparing) room.cancelPrepare()
+        roomLastTrackId = track.id
+        roomLastTrackAt = System.currentTimeMillis()
+        val intent = player.playWhenReady
+        roomPreparing = true
+        roomLocalPrepare = true
+        player.playWhenReady = false
+        silenceOutbound()
+        val seq = room.startPrepare(track, 0L, intent)
+        if (seq <= 0L) {
+            roomPreparing = false
+            roomLocalPrepare = false
+            if (intent) player.playWhenReady = true
+            return
+        }
+        scope.launch {
+            awaitRoomReady(track.id)
+            listeningRoom?.sendReady(seq)
+        }
+    }
+
+    /**
+     * Poner una cancion desde el BUSCADOR de la sala. Igual que el cambio normal,
+     * con la diferencia de que aqui la cancion todavia no estaba cargada.
+     */
+    fun playInRoom(track: RoomTrack) {
+        val room = listeningRoom ?: return
+        if (!room.state.value.isConnected) return
+        if (applyingRemoteCount.get() > 0) return
+        if (roomPreparing) room.cancelPrepare()
+        roomLastTrackId = track.id
+        roomLastTrackAt = System.currentTimeMillis()
+        roomPreparing = true
+        roomLocalPrepare = true
+        silenceOutbound()
+        player.playWhenReady = false
+        val seq = room.startPrepare(track, 0L, true)
+        scope.launch {
+            loadRoomTrack(track, 0L)
+            listeningRoom?.sendReady(seq)
+        }
+    }
+
+    /** El otro cambio la cancion: la cargo EN PAUSA y aviso cuando esta lista. */
+    private fun prepareFromRoom(order: RoomPrepareOrder) {
+        roomPreparing = true
+        roomLocalPrepare = false
+        silenceOutbound()
+        launchRemote {
+            loadRoomTrack(order.track, order.positionMs)
+            listeningRoom?.sendReady(order.seq)
+        }
+    }
+
+    /** Arranque comun: los dos empiezan en el mismo instante (hora del servidor). */
+    private fun startTogetherFromRoom(go: RoomGo) {
+        roomPreparing = false
+        roomLocalPrepare = false
+        go.track?.let {
+            roomLastTrackId = it.id
+            roomLastTrackAt = System.currentTimeMillis()
+        }
+        val pending = pendingControl
+        pendingControl = null
+        launchRemote {
+            val incoming = go.track
+            if (incoming != null && player.currentMediaItem?.mediaId != incoming.id) {
+                loadRoomTrack(incoming, go.positionMs)
+            }
+            seatPlayback(roomGoalPosition(go.positionMs, go.playing, go.serverMs), go.playing)
+            // Lo que llego mientras cargaba, ahora si.
+            if (pending != null) {
+                seatPlayback(
+                    roomGoalPosition(pending.positionMs, pending.playing, pending.serverMs),
+                    pending.playing,
+                )
+            }
+        }
+    }
+
+    /** Entre a una sala que ya iba sonando: me pongo al dia con ella. */
+    private fun adoptRoomTrack(track: RoomTrack, positionMs: Long, playing: Boolean, serverMs: Long) {
+        if (roomPreparing) return
+        roomLastTrackId = track.id
+        roomLastTrackAt = System.currentTimeMillis()
+        launchRemote {
+            if (player.currentMediaItem?.mediaId != track.id) {
+                loadRoomTrack(track, positionMs)
+            }
+            seatPlayback(roomGoalPosition(positionMs, playing, serverMs), playing)
+        }
+    }
+
+    /**
+     * Carga la cancion de la sala EN PAUSA y la deja lista para arrancar juntos:
+     * devuelve cuando esta "asentada" (STATE_READY) o se agota la espera.
+     */
+    private suspend fun loadRoomTrack(track: RoomTrack, positionMs: Long) {
+        if (player.currentMediaItem?.mediaId != track.id) {
+            val metadata = MediaMetadata(
+                id = track.id,
+                title = track.title.ifBlank { "Cancion de la sala" },
+                artists = listOf(
+                    MediaMetadata.Artist(
+                        id = null,
+                        name = track.artist.ifBlank { "YouTube Music" },
+                    )
+                ),
+                duration = (track.durationMs / 1000).toInt(),
+                thumbnailUrl = track.artwork,
+            )
+            // En pausa a proposito: si empieza a sonar antes de tiempo, el otro
+            // la "coloca" al entrar y se oye el reinicio.
+            playQueue(
+                YouTubeQueue(WatchEndpoint(videoId = track.id), metadata),
+                playWhenReady = false,
+            )
+        } else {
+            player.playWhenReady = false
+        }
+        awaitRoomReady(track.id)
+        if (positionMs > 0L) player.seekTo(positionMs.coerceAtLeast(0L))
+    }
+
+    /** Espera a que la cancion este CARGADA y lista, no solo elegida. */
+    private suspend fun awaitRoomReady(songId: String, timeoutMs: Long = ROOM_READY_TIMEOUT_MS): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (player.currentMediaItem?.mediaId == songId &&
+                player.playbackState == Player.STATE_READY
+            ) {
+                return true
+            }
+            delay(60)
+        }
+        return player.currentMediaItem?.mediaId == songId
+    }
+
+    /** Orden de control (pausa, play o saltar en la barra): no cambia cancion. */
+    private fun applyRemotePlayback(playback: RemotePlayback) {
+        // Mientras se carga una cancion, las ordenes sueltas son del estado
+        // viejo: aplicarlas pisaba la carga y armaba el ida y vuelta. Pero no se
+        // tiran: se guardan y se aplican en cuanto arranca (si no, una pausa
+        // justo en ese momento se perdia y los dos quedaban distintos).
+        if (roomPreparing) {
+            pendingControl = PendingControl(playback.positionMs, playback.playing, playback.serverMs)
+            return
+        }
+        val incoming = playback.track
+        val needsTrack = incoming != null && incoming.id != player.currentMediaItem?.mediaId
+        if (needsTrack && incoming != null) {
+            roomLastTrackId = incoming.id
+            roomLastTrackAt = System.currentTimeMillis()
+        }
+        val targetMs = roomGoalPosition(playback.positionMs, playback.playing, playback.serverMs)
+        launchRemote {
+            if (needsTrack && incoming != null) loadRoomTrack(incoming, playback.positionMs)
+            seatPlayback(targetMs, playback.playing)
+        }
+    }
+
+    /** Latido de la sala: solo corrige la deriva, sin cambiar cancion. */
+    private fun applyRemoteSync(sync: RemoteSync) {
+        // Mientras se carga una cancion, el latido trae una posicion vieja:
+        // aplicarlo movia la reproduccion y ese movimiento volvia a la sala como
+        // un salto. Ese rebote era el bucle de "empieza sola y se asienta".
+        if (roomPreparing) return
+        if (applyingRemoteCount.get() > 0) return
+        val targetMs = roomGoalPosition(sync.positionMs, sync.playing, sync.serverMs)
+        launchRemote { seatPlayback(targetMs, sync.playing) }
+    }
+
+    /**
+     * Deja la reproduccion en el segundo que toca, corrigiendo la deriva como lo
+     * haria un buen oido: si la diferencia es grande se salta (seek), y si es
+     * pequeña se ajusta la velocidad un 3 % (inaudible) hasta converger. Saltar
+     * a cada rato se oye feo; esto no.
+     */
+    private fun seatPlayback(targetMs: Long, playing: Boolean) {
+        // Sin cancion cargada no hay nada que sentar. Antes esto seguia mandando
+        // play/pausa al vacio y el otro respondia: el bucle de pausas.
+        if (player.mediaItemCount == 0 || player.currentMediaItem == null) return
+        val goal = targetMs.coerceAtLeast(0L)
+        val drift = player.currentPosition - goal
+        val settled = abs(drift) <= ROOM_SOFT_DRIFT_MS
+
+        if (!playing) {
+            // Ya esta en pausa y en el segundo correcto: no se toca nada (un
+            // "no hay nada que hacer" es la mejor defensa contra el bucle).
+            if (!player.playWhenReady && settled) return
+            if (player.playWhenReady) player.playWhenReady = false
+            if (!settled) {
+                player.seekTo(goal)
+                setRoomSpeed(1f)
+            }
+            return
+        }
+
+        if (player.playWhenReady && settled) return
+        if (!player.playWhenReady) player.playWhenReady = true
+        when {
+            abs(drift) > ROOM_HARD_DRIFT_MS -> {
+                player.seekTo(goal)
+                setRoomSpeed(1f)
+            }
+            abs(drift) > ROOM_SOFT_DRIFT_MS -> setRoomSpeed(if (drift > 0) 0.97f else 1.03f)
+            else -> setRoomSpeed(1f)
+        }
+    }
+
+    private fun setRoomSpeed(speed: Float) {
+        val current = player.playbackParameters
+        if (abs(current.speed - speed) < 0.001f) {
+            roomSpeedAdjusted = speed != 1f
+            return
+        }
+        player.setPlaybackParameters(PlaybackParameters(speed, current.pitch))
+        roomSpeedAdjusted = speed != 1f
+    }
+
+    /** Al salir de la sala la velocidad vuelve a la normal (nunca se queda en 1.03x). */
+    private fun restoreRoomSpeed() {
+        if (!roomSpeedAdjusted) return
+        val current = player.playbackParameters
+        runCatching { player.setPlaybackParameters(PlaybackParameters(1f, current.pitch)) }
+        roomSpeedAdjusted = false
+    }
+
+    /** Manda a la sala lo que acaba de hacer el usuario. */
+    private fun sendRoomState(action: String) {
+        if (!canTalkToRoom()) return
+        val room = listeningRoom ?: return
+        val metadata = currentMediaMetadata.value ?: return
+        room.sendState(
+            track = roomTrackOf(metadata),
+            positionMs = player.currentPosition,
+            playing = player.playWhenReady,
+            action = action,
+        )
+    }
+
+    /**
+     * Pausa/play del usuario: eso es lo que viaja a la sala.
+     *
+     * OJO: esto NO se puede colgar de `onIsPlayingChanged`. `isPlaying` se pone en
+     * false cada vez que el stream se queda sin buffer (y vuelve a true al
+     * recuperarse), asi que con red regular la app mandaba "pausa" y "play" sola,
+     * en bucle, y el otro se pausaba de verdad. Ese era el bucle de pausas al
+     * cambiar de cancion. Aqui solo se avisa cuando el cambio lo pidio una persona.
+     */
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        if (reason != Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) return
+        // Un toque repetido de pausa/play manda UN aviso, no una rafaga: el otro
+        // recibe una orden clara en vez de diez seguidas.
+        val now = System.currentTimeMillis()
+        if (now - lastControlSentAt < ROOM_CONTROL_COALESCE_MS) return
+        lastControlSentAt = now
+        sendRoomState(if (playWhenReady) "play" else "pause")
+    }
+
+    override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int,
+    ) {
+        // Un salto manual (la barra de progreso) tambien viaja a la sala.
+        if (reason == Player.DISCONTINUITY_REASON_SEEK) sendRoomState("seek")
     }
 
     override fun onCreate() {
@@ -309,12 +894,32 @@ class MusicService : MediaLibraryService(),
             }
         }
 
+        // Latido de la sala: cada 5 s se manda la posicion (asi la deriva nunca
+        // crece) y cada 20 s un ping, que mantiene vivo el socket y mide el reloj.
+        scope.launch {
+            while (isActive) {
+                delay(5_000)
+                val room = listeningRoom ?: continue
+                if (!room.state.value.isConnected) continue
+                // El ping sale SIEMPRE (cada 5 s): mantiene el socket vivo, mide el
+                // reloj y le dice al servidor que sigo aqui aunque este cargando
+                // una cancion. Si no, la sala me tomaria por desaparecido justo al
+                // cambiar de cancion y me esperaria como si fuera un fantasma.
+                room.ping()
+                // Con una cancion cargando (o algo del otro aplicandose) el latido
+                // mandaria una posicion que ya no vale: se calla y espera.
+                if (!canTalkToRoom()) continue
+                room.sendSync(player.currentPosition, player.playWhenReady)
+            }
+        }
+
         // Heartbeat estilo app Flutter de Velqi: cada 3 s re-envia la ultima
         // actividad verbatim (timestamp congelado). Mantiene la presencia viva
         // y coherente; si el socket cayo, setActivity reconecta.
         scope.launch {
             while (isActive) {
                 delay(3_000)
+                if (rpcShuttingDown) continue
                 withTimeoutOrNull(5_000) { discordRpc?.refresh() }
             }
         }
@@ -371,7 +976,9 @@ class MusicService : MediaLibraryService(),
                 discordRpc = null
                 lastRpcPlaying = null
                 lastRpcSongId = null
-                if (key != null && enabled) {
+                // Solo se abre el socket si hay un ID de Discord propio: sin ID, la
+                // tarjeta saldria firmada por otra aplicacion (antes, la de InnerTune).
+                if (key != null && enabled && DiscordRPC.isConfigured(this)) {
                     discordRpc = DiscordRPC(this, key)
                     syncDiscordPresence(force = true)
                 }
@@ -613,6 +1220,15 @@ class MusicService : MediaLibraryService(),
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        // Cambio de cancion con la sala abierta: se avisa ya. Se hace AQUI (y no
+        // en el flujo de la base) porque este aviso del player ya trae la cancion
+        // NUEVA: desde el otro lado no se manda la vieja por error.
+        mediaItem?.metadata?.let { metadata ->
+            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+                notifyRoomTrackChange(metadata)
+            }
+        }
+
         // Auto load more songs (una sola pagina en vuelo a la vez)
         val shouldAutoLoadMore = dataStore.get(AutoLoadMoreKey, true) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
@@ -1014,22 +1630,37 @@ class MusicService : MediaLibraryService(),
     }
 
     override fun onDestroy() {
+        // 1) Primerisimo: cortar el heartbeat. Si se cancela despues del clearPresence,
+        //    un refresh en vuelo reenvia la cancion y la tarjeta reaparece en Discord
+        //    (se queda "zombie" mostrando algo que ya no suena).
+        rpcShuttingDown = true
+        scope.cancel()
+
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }
-        if (discordRpc?.isRpcRunning() == true) {
-            // Limpiar la presencia antes de cerrar el socket: evita la
-            // actividad fantasma que Discord deja colgada al morir la app.
-            runBlocking {
-                withTimeoutOrNull(3_000) { discordRpc?.clearPresence() }
+
+        // 2) Con el heartbeat ya muerto, limpiar la presencia. Ya no depende de
+        //    isRpcRunning(): si el socket venia reconectando, ese chequeo daba false y
+        //    nunca se borraba la tarjeta. El ajuste de privacidad decide si se limpia.
+        // Salir de la sala con despedida, para que el otro no vea un fantasma.
+        runCatching { listeningRoom?.close() }
+        listeningRoom = null
+
+        val rpc = discordRpc
+        if (rpc != null) {
+            if (dataStore.get(ClearRpcOnExitKey, true)) {
+                // runCatching: si el socket venia caido, el envio puede fallar y
+                // onDestroy NUNCA debe tumbar el cierre del servicio.
+                runCatching {
+                    runBlocking {
+                        withTimeoutOrNull(3_000) { rpc.clearPresence() }
+                    }
+                }
             }
-            discordRpc?.closeRPC()
+            runCatching { rpc.closeRPC() }
         }
         discordRpc = null
-        // Cancelar ANTES de liberar el player: los collectors y los bucles de este
-        // scope seguian vivos sobre un player ya liberado (y escribian la cola
-        // persistida con un estado invalido).
-        scope.cancel()
         mediaSession.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)
@@ -1056,6 +1687,31 @@ class MusicService : MediaLibraryService(),
     }
 
     companion object {
+        /** Deriva a partir de la cual se salta (seek): por debajo no se oye. */
+        private const val ROOM_HARD_DRIFT_MS = 700L
+
+        /** Deriva que ya se corrige con un cambio de velocidad inaudible (3 %). */
+        private const val ROOM_SOFT_DRIFT_MS = 150L
+
+        /** Margen por el buffering: se coloca un pelin mas adelante para no entrar tarde. */
+        private const val ROOM_APPLY_LATENCY_MS = 120L
+
+        /** Silencio tras aplicar algo del otro: sus avisos llegan un poco despues. */
+        private const val ROOM_ECHO_GUARD_MS = 1_500L
+
+        /** Dos pausas/play seguidos en este margen cuentan como uno solo. */
+        private const val ROOM_CONTROL_COALESCE_MS = 350L
+
+        private const val ROOM_CHANNEL_ID = "listening_room"
+        private const val ROOM_NOTIFICATION_ID = 992
+
+        /** La misma cancion no se prepara dos veces seguidas (evita reinicios). */
+        private const val ROOM_TRACK_DEDUPE_MS = 20_000L
+
+        /** Espera maxima a que la cancion quede cargada y lista (corta: mejor
+         *  entrar con un pelin de desfase que hacer esperar al otro). */
+        private const val ROOM_READY_TIMEOUT_MS = 3_000L
+
         const val ROOT = "root"
         const val SONG = "song"
         const val ARTIST = "artist"

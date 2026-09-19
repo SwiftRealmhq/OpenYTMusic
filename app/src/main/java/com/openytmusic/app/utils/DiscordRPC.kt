@@ -50,6 +50,9 @@ class DiscordRPC(
 
     private suspend fun sendCurrent() {
         val song = lastSong ?: return
+        val appId = applicationId()
+        // Sin ID propio no se manda nada: la tarjeta quedaria firmada por otra app.
+        if (appId.isEmpty()) return
         setActivity(
             name = context.getString(R.string.app_name).removeSuffix(" Debug"),
             details = song.song.title,
@@ -63,11 +66,21 @@ class DiscordRPC(
             ),
             type = Type.LISTENING,
             since = lastSince,
-            applicationId = APPLICATION_ID
+            applicationId = appId
         )
     }
 
+    /** ID de la aplicacion de Discord que firma el Rich Presence, leido del recurso
+     *  en tiempo de ejecucion (ver build.gradle.kts). Vacio = sin configurar. */
+    fun applicationId(): String = runCatching {
+        context.getString(R.string.discord_app_id).trim()
+    }.getOrDefault("")
+
     companion object {
-        private const val APPLICATION_ID = "1271273225120125040"
+        /** true cuando hay un ID de Discord propio configurado. Si no lo hay, el
+         *  servicio ni siquiera abre el socket (no hay nada que enviar). */
+        fun isConfigured(context: Context): Boolean = runCatching {
+            context.getString(R.string.discord_app_id).trim().isNotEmpty()
+        }.getOrDefault(false)
     }
 }

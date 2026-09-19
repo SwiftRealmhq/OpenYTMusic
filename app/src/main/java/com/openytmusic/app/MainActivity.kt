@@ -110,6 +110,7 @@ import com.valentinilk.shimmer.LocalShimmerTheme
 import com.openytmusic.app.innertube.YouTube
 import com.openytmusic.app.innertube.models.SongItem
 import com.openytmusic.app.constants.AppBarHeight
+import com.openytmusic.app.constants.ChangelogDisabledKey
 import com.openytmusic.app.constants.DarkModeKey
 import com.openytmusic.app.constants.DefaultOpenTabKey
 import com.openytmusic.app.constants.DisableScreenshotKey
@@ -124,6 +125,7 @@ import com.openytmusic.app.constants.SearchSource
 import com.openytmusic.app.constants.SearchSourceKey
 import com.openytmusic.app.constants.AppUsageByDayKey
 import com.openytmusic.app.constants.AppUsageTimeKey
+import com.openytmusic.app.constants.LastSeenVersionKey
 import com.openytmusic.app.constants.StopMusicOnTaskClearKey
 import com.openytmusic.app.db.MusicDatabase
 import com.openytmusic.app.db.entities.SearchHistory
@@ -135,6 +137,7 @@ import com.openytmusic.app.playback.MusicService.MusicBinder
 import com.openytmusic.app.playback.PlayerConnection
 import com.openytmusic.app.playback.queues.ListQueue
 import com.openytmusic.app.ui.component.BotWallNotice
+import com.openytmusic.app.ui.component.ChangelogDialog
 import com.openytmusic.app.ui.component.RestrictedAccess
 import com.openytmusic.app.ui.component.SignedOutNotice
 import com.openytmusic.app.ui.component.BottomSheetMenu
@@ -163,6 +166,8 @@ import com.openytmusic.app.utils.Updater
 import com.openytmusic.app.utils.applyAppLocale
 import androidx.datastore.preferences.core.edit
 import com.openytmusic.app.utils.AppUsageTracker
+import com.openytmusic.app.utils.Changelog
+import com.openytmusic.app.utils.ChangelogData
 import com.openytmusic.app.utils.addDayUsage
 import com.openytmusic.app.utils.AppVersion
 import com.openytmusic.app.utils.Telemetry
@@ -216,6 +221,9 @@ class MainActivity : ComponentActivity() {
 
     private fun currentVersionName() = AppVersion.name(this)
     private var updateDialog by mutableStateOf<UpdateInfo?>(null)
+
+    // Cambios recientes: se muestra una vez por version nueva (ver Changelog.kt).
+    private var changelogDialog by mutableStateOf<Changelog?>(null)
 
     // Medicion del tiempo con la app en primer plano (estadisticas)
     private fun accumulateAppUsageTime() {
@@ -307,6 +315,22 @@ class MainActivity : ComponentActivity() {
             if (accessBlocked) {
                 RestrictedAccess()
                 return@setContent
+            }
+
+            // Changelog: una vez por version instalada. Si el usuario lo desactivo
+            // ("no volver a mostrar"), no se vuelve a abrir nunca.
+            LaunchedEffect(Unit) {
+                if (dataStore.get(ChangelogDisabledKey, false)) return@LaunchedEffect
+                val installed = currentVersionName()
+                if (dataStore.get(LastSeenVersionKey, "") == installed) return@LaunchedEffect
+                val entry = ChangelogData.forVersion(installed)
+                if (entry != null) {
+                    // Se marca como visto SOLO al cerrar el aviso (abajo), asi que si
+                    // el usuario mata la app con el dialogo abierto, lo vuelve a ver.
+                    changelogDialog = entry
+                } else {
+                    dataStore.edit { it[LastSeenVersionKey] = installed }
+                }
             }
 
             LaunchedEffect(Unit) {
@@ -986,6 +1010,30 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
+                                // Escuchar juntos: sala sincronizada con otra persona
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (navBackStackEntry?.destination?.route == "room") MaterialTheme.colorScheme.primary
+                                            else Color.Transparent
+                                        )
+                                        .clickable { navigateToRoute("room") }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.person),
+                                        contentDescription = stringResource(R.string.listening_room),
+                                        tint = if (navBackStackEntry?.destination?.route == "room") {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+
                             }
                         }
 
@@ -1036,6 +1084,24 @@ class MainActivity : ComponentActivity() {
                                 dismissButton = {
                                     TextButton(onClick = { updateDialog = null }) {
                                         Text(stringResource(R.string.update_later))
+                                    }
+                                }
+                            )
+                        }
+
+                        changelogDialog?.let { changelog ->
+                            ChangelogDialog(
+                                version = changelog.version,
+                                highlights = changelog.highlights,
+                                onDismiss = { disableForever ->
+                                    changelogDialog = null
+                                    lifecycleScope.launch {
+                                        dataStore.edit { settings ->
+                                            settings[LastSeenVersionKey] = changelog.version
+                                            if (disableForever) {
+                                                settings[ChangelogDisabledKey] = true
+                                            }
+                                        }
                                     }
                                 }
                             )

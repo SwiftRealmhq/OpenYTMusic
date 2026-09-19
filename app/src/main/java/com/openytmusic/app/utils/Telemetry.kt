@@ -110,7 +110,14 @@ object Telemetry {
     private suspend fun statsEnabled(context: Context): Boolean =
         baseUrl(context).isNotEmpty() && context.dataStore.get(AnonymousStatsKey, true)
 
-    private suspend fun installId(context: Context): String {
+    /**
+     * ID aleatorio de esta instalacion (nunca identifica a nadie).
+     *
+     * Lo usan tambien las salas: con el, el servidor reconoce que una conexion
+     * nueva es la misma app que ya estaba y reemplaza la vieja, en vez de dejarla
+     * de fantasma en la sala.
+     */
+    suspend fun installId(context: Context): String {
         context.dataStore.get(AnalyticsInstallIdKey)?.takeIf { it.isNotEmpty() }?.let { return it }
         val id = UUID.randomUUID().toString()
         context.dataStore.edit { it[AnalyticsInstallIdKey] = id }

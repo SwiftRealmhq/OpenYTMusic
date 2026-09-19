@@ -65,6 +65,17 @@ val DisableScreenshotKey = booleanPreferencesKey("disableScreenshot")
 // Activadas por defecto y se pueden apagar en Privacidad: si estan apagadas, la
 // app no manda absolutamente nada al backend (ver Telemetry.kt).
 val AnonymousStatsKey = booleanPreferencesKey("anonymousStats")
+
+// Rich Presence al cerrar: si esta activo, al morir la app se borra la presencia
+// en Discord (evita la tarjeta "zombie" que se queda horas con la ultima cancion).
+val ClearRpcOnExitKey = booleanPreferencesKey("clearRpcOnExit")
+
+// Nombre con el que apareces en las salas de escucha compartida.
+val RoomNameKey = stringPreferencesKey("roomName")
+
+// Changelog: se muestra una vez por version nueva y se puede desactivar.
+val ChangelogDisabledKey = booleanPreferencesKey("changelogDisabled")
+val LastSeenVersionKey = stringPreferencesKey("lastSeenVersion")
 val AnalyticsInstallIdKey = stringPreferencesKey("analyticsInstallId")
 val AnalyticsLastHeartbeatDayKey = longPreferencesKey("analyticsLastHeartbeatDay")
 

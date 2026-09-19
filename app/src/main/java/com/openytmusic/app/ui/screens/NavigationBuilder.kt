@@ -21,6 +21,7 @@ import com.openytmusic.app.ui.screens.library.LibraryArtistsScreen
 import com.openytmusic.app.ui.screens.library.LibraryPlaylistsScreen
 import com.openytmusic.app.ui.screens.library.LibrarySongsScreen
 import com.openytmusic.app.ui.screens.playlist.LocalPlaylistScreen
+import com.openytmusic.app.ui.screens.room.ListeningRoomScreen
 import com.openytmusic.app.ui.screens.playlist.OnlinePlaylistScreen
 import com.openytmusic.app.ui.screens.search.OnlineSearchResult
 import com.openytmusic.app.ui.screens.settings.AboutScreen
@@ -49,6 +50,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("library") {
         LibraryScreen(navController, scrollBehavior)
+    }
+    composable("room") {
+        ListeningRoomScreen(navController, scrollBehavior)
     }
     composable(Screens.Artists.route) {
         LibraryArtistsScreen(navController)

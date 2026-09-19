@@ -77,6 +77,11 @@
   .btn:hover { background: #e00000; }
   .btn:focus-visible { outline: 3px solid var(--red-soft); outline-offset: 3px; }
   .btn--sm { padding: 10px 18px; font-size: 14px; }
+  .btn--ghost {
+    background: transparent; border: 1px solid var(--line); color: var(--text);
+  }
+  .btn--ghost:hover { background: var(--surface-2); border-color: rgba(255,0,0,.55); }
+  #gh-link svg { fill: currentColor; }
 
   /* ── Hero ───────────────────────────────────────────────────────────── */
   .hero { padding: 40px 0 32px; text-align: center; }
@@ -310,6 +315,12 @@
     .trust ul li { opacity: 1 !important; }
   }
 
+  /* En pantallas estrechas el GitHub de la barra estorba: sigue en el hero y en
+     el pie, asi que ahi se oculta para dejar respirar la descarga. */
+  @media (max-width: 560px) {
+    #gh-link { display: none; }
+  }
+
   @media (min-width: 700px) {
     section { padding: 72px 0; }
     .grid--3 { grid-template-columns: repeat(3, 1fr); }
@@ -328,6 +339,10 @@
       <span>OpenYTMusic</span>
     </a>
     <div class="nav__spacer"></div>
+    <a class="btn btn--ghost btn--sm" id="gh-link" href="https://github.com/SwiftRealmhq/OpenYTMusic" target="_blank" rel="noopener noreferrer">
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>
+      <span data-i18n="nav.github">GitHub</span>
+    </a>
     <div class="lang" role="group" aria-label="Idioma / Language">
       <button type="button" data-lang="es" aria-pressed="true">ES</button>
       <button type="button" data-lang="en" aria-pressed="false">EN</button>
@@ -355,6 +370,10 @@
           <span data-i18n="hero.cta">Descargar APK</span>
         </a>
         <p class="hero__meta"><span id="apk-version">v0.6.2</span> · <span data-i18n="hero.meta">7,6 MB · Android 7.0 o superior · gratis</span></p>
+        <a class="btn btn--ghost btn--sm" href="https://github.com/SwiftRealmhq/OpenYTMusic" target="_blank" rel="noopener noreferrer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>
+          <span data-i18n="hero.github">Ver el código en GitHub (solo lectura)</span>
+        </a>
       </div>
 
       <div class="trust">
@@ -431,6 +450,12 @@
           <p data-i18n="feat.6.d">Letras sincronizadas y radios infinitas a partir de cualquier canción.</p>
         </div>
 
+        <div class="card">
+          <div class="card__ico"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 11a3 3 0 1 1 6 0 3 3 0 0 1-6 0Zm3-8a8 8 0 0 0-7.4 5H6a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-.6A8 8 0 1 0 12 3Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z"/></svg></div>
+          <h3 data-i18n="feat.7.t">Escuchar juntos</h3>
+          <p data-i18n="feat.7.d">Crea una sala, comparte el código y los dos escuchan la misma canción al mismo tiempo, con chat.</p>
+        </div>
+
       </div>
     </div>
   </section>
@@ -480,10 +505,11 @@
       <span class="eyebrow" id="news-version">0.6.2</span>
       <h2 style="margin-top:10px" data-i18n="news.title">Qué hay de nuevo</h2>
       <ul>
-        <li><strong data-i18n="news.1.t">Importación a prueba de balas.</strong> <span data-i18n="news.1.d">Se corrigió un bucle que podía colgar la app al traer tus playlists.</span></li>
-        <li><strong data-i18n="news.2.t">Tu sesión, más protegida.</strong> <span data-i18n="news.2.d">Ya no se copia a la nube ni viaja entre dispositivos, y cerrar sesión borra las cookies de verdad.</span></li>
-        <li><strong data-i18n="news.3.t">Reproducción más estable.</strong> <span data-i18n="news.3.d">La música sigue al cerrar la app desde Recientes y la cola no se corrompe al salir.</span></li>
-        <li><strong data-i18n="news.4.t">Enlaces y «compartir».</strong> <span data-i18n="news.4.d">Abren bien aunque la app estuviera cerrada.</span></li>
+        <li><strong data-i18n="news.1.t">Escuchar juntos.</strong> <span data-i18n="news.1.d">El nuevo botón de la barra de abajo: creas una sala, le pasas el código a quien quieras y los dos oyen lo mismo al mismo tiempo. Si uno pausa, cambia de canción o se adelanta, al otro le pasa igual, y trae chat y buscador propios dentro de la sala.</span></li>
+        <li><strong data-i18n="news.2.t">La sala, a prueba de bichos.</strong> <span data-i18n="news.2.d">Se arreglaron los «oyentes de más», las pausas repentinas y el bucle al cambiar de canción. Ahora nada suena hasta que los dos la tienen cargada y ahí arranca sola, a la vez.</span></li>
+        <li><strong data-i18n="news.3.t">Portadas nítidas.</strong> <span data-i18n="news.3.d">Algunas se veían borrosas porque la app las pedía en baja calidad; ahora se piden en alta resolución y todas se ven igual de bien.</span></li>
+        <li><strong data-i18n="news.4.t">Discord arreglado.</strong> <span data-i18n="news.4.d">Ya no se queda mostrando una canción vieja al cerrar la app, y aparece con la identidad de OpenYTMusic en lugar de la de otro cliente.</span></li>
+        <li><strong data-i18n="news.5.t">Control del uso.</strong> <span data-i18n="news.5.d">Registro anónimo de usuarios activos, búsquedas y canciones para cortar el abuso. Se puede apagar en Privacidad.</span></li>
       </ul>
     </div>
   </section>
@@ -516,6 +542,13 @@
   <div class="wrap">
     <img src="assets/openytmusic-logo.png" alt="OpenYTMusic" width="62" height="62">
     <p>&copy; 2026 <span class="glyphs" id="glyphs" aria-hidden="true">ΞΨΩΔ◇◈</span> · <span data-i18n="footer.rights">Todos los derechos reservados.</span></p>
+    <p style="margin-top:12px">
+      <a class="btn btn--ghost btn--sm" href="https://github.com/SwiftRealmhq/OpenYTMusic" target="_blank" rel="noopener noreferrer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>
+        <span data-i18n="footer.github">Código fuente en GitHub</span>
+      </a>
+    </p>
+    <p class="foot__note" data-i18n="footer.license">Código visible, solo lectura: puedes leerlo y estudiarlo, no copiarlo ni redistribuirlo.</p>
     <p class="foot__note" data-i18n="footer.disclaimer">OpenYTMusic es un cliente independiente, hecho por un fan de la música. No está afiliado ni respaldado por YouTube ni por Google LLC. «YouTube» y «YouTube Music» son marcas de Google LLC.</p>
   </div>
 </footer>
@@ -554,6 +587,12 @@
       "feat.5.d": "Dark theme, dynamic colour and a genuinely clean interface.",
       "feat.6.t": "Lyrics and radio",
       "feat.6.d": "Synced lyrics and endless radio from any song.",
+      "nav.github": "GitHub",
+      "hero.github": "View the code on GitHub (read-only)",
+      "feat.7.t": "Listen together",
+      "feat.7.d": "Create a room, share the code and both listen to the same song at the same time, with chat.",
+      "footer.github": "Source code on GitHub",
+      "footer.license": "Source-available, read-only: you may read and study it, not copy or redistribute it.",
       "steps.title": "Getting started",
       "steps.1.t": "Download the APK",
       "steps.1.d": "It is 7.6 MB. No account or sign-up needed to get the file.",
@@ -562,14 +601,16 @@
       "steps.3.t": "Sign in to YouTube Music (optional)",
       "steps.3.d": "It imports your playlists and Likes, and stops YouTube from asking you to verify while playing.",
       "news.title": "What is new",
-      "news.1.t": "Bulletproof importing.",
-      "news.1.d": "A loop that could hang the app while fetching your playlists was fixed.",
-      "news.2.t": "Your session, safer.",
-      "news.2.d": "It is no longer copied to the cloud or moved between devices, and signing out really clears the cookies.",
-      "news.3.t": "More stable playback.",
-      "news.3.d": "Music keeps playing when you close the app from Recents and the queue no longer gets corrupted on exit.",
-      "news.4.t": "Links and sharing.",
-      "news.4.d": "They open correctly even if the app was closed.",
+      "news.1.t": "Listen together.",
+      "news.1.d": "The new button in the bottom bar: create a room, hand the code to whoever you want and both hear the same thing at the same time. If one pauses, changes song or skips ahead, the same happens to the other, and it brings its own chat and search inside the room.",
+      "news.2.t": "A bug-proof room.",
+      "news.2.d": "The «extra listeners», the sudden pauses and the loop when changing songs were fixed. Nothing plays until both have the song loaded, and then it starts on its own, at the same time.",
+      "news.3.t": "Sharp covers.",
+      "news.3.d": "Some looked blurry because the app requested them in low quality; now they are requested in high resolution and all look equally good.",
+      "news.4.t": "Discord fixed.",
+      "news.4.d": "It no longer gets stuck showing an old song when you close the app, and it shows up with OpenYTMusic's identity instead of another client's.",
+      "news.5.t": "Usage control.",
+      "news.5.d": "Anonymous record of active users, searches and songs to stop abuse. It can be turned off in Privacy.",
       "faq.title": "Frequently asked questions",
       "faq.1.q": "Is it free?",
       "faq.1.a": "Yes. No subscription, no in-app purchases and no account needed to use it.",
@@ -608,6 +649,12 @@
       "feat.5.d": "Tema escuro, cor dinâmica e uma interface realmente limpa.",
       "feat.6.t": "Letras e rádio",
       "feat.6.d": "Letras sincronizadas e rádio infinita a partir de qualquer música.",
+      "nav.github": "GitHub",
+      "hero.github": "Ver o código no GitHub (só leitura)",
+      "feat.7.t": "Ouvir juntos",
+      "feat.7.d": "Crie uma sala, compartilhe o código e os dois ouvem a mesma música ao mesmo tempo, com chat.",
+      "footer.github": "Código-fonte no GitHub",
+      "footer.license": "Código visível, só leitura: você pode ler e estudar, não copiar nem redistribuir.",
       "steps.title": "Como começar",
       "steps.1.t": "Baixe o APK",
       "steps.1.d": "São 7,6 MB. Não precisa de conta nem cadastro para baixar o arquivo.",
@@ -616,14 +663,16 @@
       "steps.3.t": "Entre no YouTube Music (opcional)",
       "steps.3.d": "Serve para importar suas playlists e Curtidas, e para o YouTube parar de pedir verificação ao tocar.",
       "news.title": "O que há de novo",
-      "news.1.t": "Importação à prova de falhas.",
-      "news.1.d": "Corrigimos um loop que podia travar o app ao buscar suas playlists.",
-      "news.2.t": "Sua sessão, mais protegida.",
-      "news.2.d": "Não é mais copiada para a nuvem nem transferida entre aparelhos, e sair da conta apaga os cookies de verdade.",
-      "news.3.t": "Reprodução mais estável.",
-      "news.3.d": "A música continua ao fechar o app pelos Recentes e a fila não se corrompe ao sair.",
-      "news.4.t": "Links e compartilhar.",
-      "news.4.d": "Abrem corretamente mesmo com o app fechado.",
+      "news.1.t": "Ouvir juntos.",
+      "news.1.d": "O novo botão da barra de baixo: você cria uma sala, passa o código para quem quiser e os dois ouvem a mesma coisa ao mesmo tempo. Se um pausa, troca de música ou adianta, acontece o mesmo com o outro, e traz chat e busca próprios dentro da sala.",
+      "news.2.t": "Sala à prova de bugs.",
+      "news.2.d": "Corrigimos os «ouvintes a mais», as pausas de repente e o loop ao trocar de música. Nada toca até que os dois tenham a música carregada, e aí começa sozinho, ao mesmo tempo.",
+      "news.3.t": "Capas nítidas.",
+      "news.3.d": "Algumas ficavam embaçadas porque o app pedia em baixa qualidade; agora são pedidas em alta resolução e todas ficam igualmente boas.",
+      "news.4.t": "Discord corrigido.",
+      "news.4.d": "Não fica mais travado mostrando uma música antiga ao fechar o app, e aparece com a identidade do OpenYTMusic em vez da de outro cliente.",
+      "news.5.t": "Controle de uso.",
+      "news.5.d": "Registro anônimo de usuários ativos, buscas e músicas para cortar abusos. Pode ser desligado em Privacidade.",
       "faq.title": "Perguntas frequentes",
       "faq.1.q": "É grátis?",
       "faq.1.a": "Sim. Sem assinatura, sem compras dentro do app e sem precisar criar conta para usar.",

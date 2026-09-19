@@ -12,9 +12,10 @@ Desarrollado por: Leo
 
 ---
 
-> ⚠️ **CONFIDENCIAL** — Repositorio **privado** de código **cerrado**. El acceso está limitado
-> por invitación explícita del autor. Queda prohibida la copia, distribución, publicación, fork
-> o divulgación de cualquier parte del código, total o parcial, sin autorización escrita previa.
+> 📖 **CÓDIGO VISIBLE (SOLO LECTURA)** — Repositorio público para **leer**, no para copiar.
+> Puedes leer, estudiar y compilar para uso personal no comercial; **no** puedes copiar,
+> modificar, redistribuir ni usar comercialmente el código. Los términos completos están en
+> [`LICENSE`](LICENSE), que también aclara la licencia propia de cada módulo de terceros.
 
 ---
 
@@ -23,19 +24,22 @@ Desarrollado por: Leo
 1. [Stack técnico](#stack-técnico)
 2. [Arquitectura de módulos](#arquitectura-de-módulos)
 3. [Funciones](#funciones)
-4. [Requisitos de build](#requisitos-de-build)
-5. [Variantes de build](#variantes-de-build)
-6. [Compilar paso a paso](#compilar-paso-a-paso)
-7. [Firmar el release](#firmar-el-release)
-8. [Instalar y probar](#instalar-y-probar)
-9. [Logs y diagnóstico](#logs-y-diagnóstico)
-10. [Resolución de streams y anti-bot](#resolución-de-streams-y-anti-bot)
-11. [Problemas comunes](#problemas-comunes)
-12. [API (YouTube Music / InnerTube)](#api-youtube-music--innertube)
-13. [Testear vía código](#testear-vía-código)
-14. [Guía para contribuidores](#guía-para-contribuidores)
-15. [Estado](#estado)
-16. [Disclaimer](#disclaimer)
+4. [Escuchar juntos (salas)](#escuchar-juntos-salas)
+5. [Backend de control (analytics + oymctl)](#backend-de-control-analytics--oymctl)
+6. [Requisitos de build](#requisitos-de-build)
+7. [Variantes de build](#variantes-de-build)
+8. [Compilar paso a paso](#compilar-paso-a-paso)
+9. [Firmar el release](#firmar-el-release)
+10. [Instalar y probar](#instalar-y-probar)
+11. [Logs y diagnóstico](#logs-y-diagnóstico)
+12. [Resolución de streams y anti-bot](#resolución-de-streams-y-anti-bot)
+13. [Problemas comunes](#problemas-comunes)
+14. [API (YouTube Music / InnerTube)](#api-youtube-music--innertube)
+15. [Testear vía código](#testear-vía-código)
+16. [Guía para contribuidores](#guía-para-contribuidores)
+17. [Estado](#estado)
+18. [Licencia](#licencia)
+19. [Disclaimer](#disclaimer)
 
 ## Stack técnico
 
@@ -67,6 +71,13 @@ OpenYTMusic/
 ├── kugou/                    # Cliente de KuGou (letras)
 ├── discord-rpc/              # Gateway de Discord (Rich Presence)
 ├── material-color-utilities/ # Utilidades de color Material (tema)
+├── analytics/                # Backend (FastAPI + Postgres): registro, baneo y salas
+│   ├── main.py               #   API de eventos, estado de acceso y administración
+│   ├── rooms.py              #   Salas de "escuchar juntos" (WebSocket + protocolo)
+│   ├── room_sim.py           #   Prueba con dos clientes reales (sin dependencias)
+│   ├── oymctl.py             #   CLI para ver el registro desde cualquier máquina
+│   └── schema.sql            #   Tablas (eventos, redes y salas)
+├── landing/                  # Página de descarga (Netlify) y APK publicado
 └── desktop/                  # Variante de escritorio (experimental)
 ```
 
@@ -84,8 +95,71 @@ reproducción vive en `com.openytmusic.app.playback` (servicio de media, colas, 
 - Letras sincronizadas (LrcLib / KuGou / transcript) y sin sincronizar
 - **PoToken (BotGuard) como rescate automático cuando YouTube responde muro anti-bot**
 - Discord Rich Presence con timestamp tipo Spotify
+- **Escuchar juntos**: salas por código para oír la misma música al mismo tiempo, con chat
+  efímero (ver [abajo](#escuchar-juntos-salas))
+- **Control total**: registro anónimo de usuarios activos, búsquedas y reproducciones, con
+  baneo por red y CLI de administración (ver [abajo](#backend-de-control-analytics--oymctl))
+- **Aviso de novedades** al actualizar, con opción de no volver a mostrarlo
 - Descargas offline (`ExoDownloadService` + `DownloadUtil` en `app`), colas, radios y mezcla infinita
 - Tema oscuro puro con acento rojo vivo y color dinámico opcional desde la portada
+
+## Escuchar juntos (salas)
+
+Dos (hasta cuatro) teléfonos oyen **la misma canción, en el mismo segundo**. Uno crea una sala,
+comparte el código de 6 caracteres y el otro entra con él.
+
+**No es una llamada de audio.** No se transmite sonido: cada teléfono reproduce su propio
+stream de YouTube Music y entre ellos solo viaja el estado de reproducción (~50 bytes por
+mensaje: qué canción, en qué segundo y si suena). Por eso sincronizar no cuesta ancho de banda
+y la calidad es la misma que escuchando solo.
+
+| Pieza | Cómo funciona |
+|---|---|
+| Código de sala | 6 caracteres, sin `I/O/0/1` (para dictarlo sin errores). La sala dura 24 h y **sigue viva si uno sale**. |
+| El servidor es el reloj | Cada mensaje sale sellado con la hora del servidor. El invitado calcula en qué segundo debería ir: corrige el desfase de relojes **y** la latencia en una sola cuenta. |
+| Arranque en dos tiempos | Al cambiar de canción, los dos la cargan **en pausa** y avisan. Solo cuando el último avisa, el servidor manda **una única hora de arranque** para los dos. Nada suena antes: así no se oye a uno empezar solo ni al otro reiniciarlo encima. |
+| Corrección de deriva | Por debajo de 150 ms no se toca nada; entre 150 y 700 ms se ajusta la velocidad un 3 % (inaudible); solo se salta (seek) si de verdad se desincronizó. |
+| Los dos controlan | Pausa, siguiente/anterior, la barra de progreso y el buscador de la sala viajan a los dos lados, con guardas para que nada rebote de vuelta. |
+| Anti-fantasma | La app manda el UUID de su instalación al entrar: si el socket se cae y vuelve, el servidor **reemplaza** la conexión anterior (si no, el mismo teléfono aparecía dos veces y frenaba el arranque). Un barrido saca a quien desaparece de golpe. |
+| Buscador propio | Lupa dentro de la sala, con **predicciones** mientras escribes. Elegir una canción la pone en los dos y arranca sincronizada. |
+| Chat efímero | Se retransmite en vivo y **no se guarda** ni una línea. Trae indicador de escritura (puntitos) y avisos de entrada/salida. |
+
+El socket vive en `MusicService`, no en la pantalla: la sincronización sigue con la app en
+segundo plano o el teléfono bloqueado, que es cuando de verdad se escucha música.
+
+**Archivos:** `analytics/rooms.py` (servidor), `app/.../utils/ListeningRoom.kt` (cliente),
+`app/.../ui/screens/room/ListeningRoomScreen.kt` (pantalla), `app/.../playback/MusicService.kt`
+(motor de sincronía) y `analytics/room_sim.py` (prueba con dos clientes reales).
+
+```bash
+# Prueba del protocolo sin tocar el teléfono: dos clientes, contra el servidor real
+cd analytics && python3 room_sim.py https://openytmusic-analytics.onrender.com
+```
+
+## Backend de control (analytics + oymctl)
+
+Servicio ultraligero (FastAPI + Postgres) que sostiene dos cosas: el **registro de uso** y las
+**salas**. Está desplegado en Render (plan gratis, `render.yaml` en la raíz) y la app se
+compila apuntando a él con `-PoymAnalyticsUrl=https://...`.
+
+- **Registro**: latido diario, búsquedas y canciones que suenan, con `install_id` aleatorio
+  (UUID). Nunca se envía la IP: el backend la ve por la conexión y la guarda **hasheada**, así
+  el baneo se aplica por red sin que la app mande nada personal. Se puede apagar desde
+  Privacidad en la app.
+- **Baneo**: una red baneada no puede registrar eventos **ni crear o entrar a salas**.
+- **CLI** (`analytics/oymctl.py`): se conecta al backend y muestra todo con vistas navegables
+  (resumen, usuarios, búsquedas, canciones, redes y salas), exporta a JSON y permite banear una
+  red o cerrar una sala.
+
+```bash
+cd analytics && python3 oymctl.py            # panel interactivo (teclas 1-5, salas con 0)
+python3 oymctl.py rooms                      # salas activas
+python3 oymctl.py close-room XL89MR          # cerrar una sala
+python3 oymctl.py export                     # respaldo completo en JSON
+```
+
+> El Postgres del plan gratis de Render caduca a los 30 días: antes de esa fecha, corre
+> `oymctl.py export` y guarda el JSON.
 
 ## Requisitos de build
 
@@ -430,27 +504,41 @@ La estrategia de testing es conservadora: los cambios deben validarse en disposi
 
 ## Guía para contribuidores
 
-1. **Acceso**: solo por invitación del autor (colaborador con rol `Write`). No se otorgan roles
-   `Admin` ni acceso a la keystore, secretos o credenciales de publicación.
-2. **Flujo de trabajo**:
-   - Crear una rama descriptiva desde `main` (`git checkout -b fix/nombre-corto`).
-   - Implementar el cambio siguiendo el estilo existente (Kotlin, Compose, strings en `values/`
-     y `values-es/`).
-   - Verificar compilación y linter antes del push.
-   - Abrir **Pull Request** hacia `main`.
-3. **Política del repo**:
-   - Prohibido subir APKs, keystores, tokens o secretos (el `.gitignore` los excluye).
-   - Prohibido copiar o divulgar el código fuera del repo.
-4. **Reporting**: los bugs se describen en un issue con pasos de reproducción, build y
-   logs de `logcat` (`adb logcat` filtrando por `KernelVelqi`).
+Este repositorio es de **lectura**. No se aceptan cambios ni Pull Requests de terceros: la
+razón está en [`LICENSE`](LICENSE) (el código se publica para leerlo y estudiarlo, no para
+reutilizarlo).
+
+1. **Acceso**: el repo es público, solo para lectura. La keystore, los secretos y las
+   credenciales de publicación no se comparten con nadie.
+2. **Reportar un bug** (bienvenido): abre un issue con los pasos de reproducción, la versión
+   instalada y los logs relevantes (`adb logcat`, filtrando por `ListeningRoom` para las
+   salas o por `KernelVelqi` para el reproductor).
+3. **Estilo del código** (para entenderlo, no para proponer cambios): Kotlin + Compose,
+   comentarios y nombres en español, textos de interfaz siempre en `values/`, `values-es/` y
+   `values-es-rUS/`, y la lógica de cada función explicada en el propio archivo.
+4. **Política del repo**: prohibido subir APKs, keystores, tokens o secretos (el `.gitignore`
+   los excluye).
 
 ## Estado
 
-- **Versión**: 0.6.1 (`versionCode` 32)
-- **APK release**: universal, ~7,7 MB firmado
-- **Visibilidad**: privado — no público, no forkable, sin mirrors
-- **Propósito del repo**: copia de seguridad en la nube y colaboración cerrada
-- **Licencia**: código cerrado — todos los derechos reservados por Leo
+- **Versión**: 0.6.2 (`versionCode` 33)
+- **APK release**: universal y firmado, ~8 MB
+- **Visibilidad**: público — **código visible (solo lectura)**, todos los derechos reservados
+- **Backend**: Render (plan gratis) + Postgres, con CLI de administración en `analytics/oymctl.py`
+- **Propósito del repo**: publicar el trabajo para lectura y aprendizaje, y respaldarlo
+- **Distribución**: APK oficial en <https://openytmusic.netlify.app>
+
+## Licencia
+
+**Código visible, solo lectura.** Puedes leer, estudiar y compilar este proyecto para uso
+personal y no comercial. **No** puedes copiarlo, modificarlo, redistribuirlo, publicar binarios
+ni usarlo comercialmente sin autorización escrita previa.
+
+El texto completo (en español e inglés) está en [`LICENSE`](LICENSE), junto con el aviso de
+terceros: los módulos `material-color-utilities` (Apache 2.0), `lrclib`, `kugou`,
+`innertube`, `selene`, `discord-rpc` y `zemer-cipher` conservan su licencia original, y partes
+del cliente derivan de proyectos GPL-3.0. El trabajo de esas personas no queda cubierto por
+estos términos: sus licencias manda sobre su código.
 
 ## Disclaimer
 

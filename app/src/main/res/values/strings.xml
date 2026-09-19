@@ -426,4 +426,70 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+
+    <!-- What is new during an update (shown once per version) -->
+    <string name="changelog_title">What is new in v%1$s</string>
+    <string name="changelog_subtitle">These are the changes in this version</string>
+    <string name="changelog_dont_show_again">Don\'t show again</string>
+    <string name="changelog_ok">Got it</string>
+
+    <!-- Listen together (shared listening room) -->
+    <string name="listening_room">Listen together</string>
+    <string name="listening_room_intro">Create a room, share the code and the two of you will hear the same song at the same second: if one pauses, changes song or skips ahead, the other one follows. Only the playback position travels, so it needs no data at all.</string>
+    <string name="listening_room_your_name">Your name in the room</string>
+    <string name="listening_room_create">Create a room</string>
+    <string name="listening_room_or_join">Or join with a code</string>
+    <string name="listening_room_code">Room code</string>
+    <string name="listening_room_enter">Join</string>
+    <string name="listening_room_creating">Creating the room…</string>
+    <string name="listening_room_connecting">Connecting to the room…</string>
+    <string name="listening_room_privacy_note">The chat is not saved: messages only travel while the room is open. Nobody sees your account or your IP.</string>
+    <string name="listening_room_share">Share the code</string>
+    <string name="listening_room_share_text">Join my OpenYTMusic room with the code %1$s</string>
+    <string name="listening_room_you">you</string>
+    <string name="listening_room_alone">You are alone for now — share the code so someone joins.</string>
+    <string name="listening_room_members">In the room: %1$s</string>
+    <string name="listening_room_playing">Synced · playing</string>
+    <string name="listening_room_paused">Synced · paused</string>
+    <string name="listening_room_chat">Room chat</string>
+    <string name="listening_room_chat_empty">Say something about what is playing…</string>
+    <string name="listening_room_chat_hint">Message</string>
+    <string name="listening_room_chat_send">Send</string>
+    <string name="listening_room_leave">Leave the room</string>
+    <string name="listening_room_default_name">Listener %1$d</string>
+    <string name="listening_room_name_helper">This is how the other person will see you. You can change it any time.</string>
+    <string name="listening_room_rename">Change my name</string>
+    <string name="listening_room_rename_title">Your name in the room</string>
+    <string name="listening_room_save">Save</string>
+    <string name="listening_room_cancel">Cancel</string>
+    <string name="listening_room_copied">Code copied</string>
+    <string name="listening_room_members_short">%1$d in the room</string>
+    <string name="listening_room_nothing_yet">Nothing playing yet</string>
+    <string name="listening_room_preparing">Getting ready to start together…</string>
+    <string name="listening_room_waiting_other">Waiting for someone to join…</string>
+    <string name="listening_room_synced_playing">Playing together</string>
+    <string name="listening_room_synced_paused">Paused</string>
+    <string name="listening_room_chat_private">the chat is not saved</string>
+    <string name="listening_room_previous">Previous</string>
+    <string name="listening_room_next">Next</string>
+    <string name="listening_room_play">Play</string>
+    <string name="listening_room_pause">Pause</string>
+    <string name="listening_room_search">Search for the room</string>
+    <string name="listening_room_search_hint">Search a song</string>
+    <string name="listening_room_search_close">Close the search</string>
+    <string name="listening_room_search_title">Plays in the room</string>
+    <string name="listening_room_search_for_both">you both hear it</string>
+    <string name="listening_room_search_empty">Type a song name and it will show up here.</string>
+    <string name="listening_room_search_none">Nothing found with that name.</string>
+    <string name="listening_room_typing">%1$s is typing</string>
+    <string name="listening_room_leave_title">Leave the room?</string>
+    <string name="listening_room_leave_text">If you go back you leave the room: you stop listening together and the search closes, because it only works inside. Whatever is playing in the room keeps going for the other person.</string>
+    <string name="listening_room_leave_confirm">Leave the room</string>
+    <string name="listening_room_leave_stay">Stay</string>
+    <string name="listening_room_notice_joined">%1$s joined the room</string>
+    <string name="listening_room_notice_chat_title">%1$s · %2$s</string>
+
+    <!-- Discord: clear the card when the app closes -->
+    <string name="clear_discord_rpc_on_exit">Clear Rich Presence on exit</string>
+    <string name="clear_discord_rpc_on_exit_desc">Removes the Discord card when you close the app, so it never stays showing a song that is no longer playing.</string>
 </resources>

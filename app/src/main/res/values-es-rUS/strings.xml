@@ -330,4 +330,70 @@
     <string name="action_like_all">Me gustan todas</string>
     <string name="squiggly">Ondulado</string>
     <string name="revived_description">OpenYTMusic es un cliente oficial de YouTube Music impulsado por una API privada. Todo el contenido pertenece a sus creadores y se reproduce tal cual. Al ser un proyecto mantenido por una sola persona, pueden ocurrir errores sin previo aviso; de ser así, espera a una actualización. — Leo</string>
+
+    <!-- Novedades (se muestran una vez por versión) -->
+    <string name="changelog_title">Novedades de la v%1$s</string>
+    <string name="changelog_subtitle">Esto es lo que cambió en esta versión</string>
+    <string name="changelog_dont_show_again">No volver a mostrar</string>
+    <string name="changelog_ok">Entendido</string>
+
+    <!-- Escuchar juntos (sala compartida) -->
+    <string name="listening_room">Escuchar juntos</string>
+    <string name="listening_room_intro">Creá una sala, compartí el código y los dos escuchan la misma canción en el mismo segundo: si uno pausa, cambia de canción o se adelanta, al otro le pasa igual. Solo viaja la posición, así que no gasta datos.</string>
+    <string name="listening_room_your_name">Tu nombre en la sala</string>
+    <string name="listening_room_create">Crear una sala</string>
+    <string name="listening_room_or_join">O entrá con un código</string>
+    <string name="listening_room_code">Código de la sala</string>
+    <string name="listening_room_enter">Entrar</string>
+    <string name="listening_room_creating">Creando la sala…</string>
+    <string name="listening_room_connecting">Conectando a la sala…</string>
+    <string name="listening_room_privacy_note">El chat no se guarda: los mensajes solo viajan mientras la sala está abierta. Nadie ve tu cuenta ni tu IP.</string>
+    <string name="listening_room_share">Compartir el código</string>
+    <string name="listening_room_share_text">Unite a mi sala de OpenYTMusic con el código %1$s</string>
+    <string name="listening_room_you">vos</string>
+    <string name="listening_room_alone">Estás solo por ahora — compartí el código para que entre alguien.</string>
+    <string name="listening_room_members">En la sala: %1$s</string>
+    <string name="listening_room_playing">Sincronizado · sonando</string>
+    <string name="listening_room_paused">Sincronizado · en pausa</string>
+    <string name="listening_room_chat">Chat de la sala</string>
+    <string name="listening_room_chat_empty">Decí algo de lo que está sonando…</string>
+    <string name="listening_room_chat_hint">Mensaje</string>
+    <string name="listening_room_chat_send">Enviar</string>
+    <string name="listening_room_leave">Salir de la sala</string>
+    <string name="listening_room_default_name">Oyente %1$d</string>
+    <string name="listening_room_name_helper">Así te verán en la sala. Puedes cambiarlo cuando quieras.</string>
+    <string name="listening_room_rename">Cambiar mi nombre</string>
+    <string name="listening_room_rename_title">Tu nombre en la sala</string>
+    <string name="listening_room_save">Guardar</string>
+    <string name="listening_room_cancel">Cancelar</string>
+    <string name="listening_room_copied">Código copiado</string>
+    <string name="listening_room_members_short">%1$d en la sala</string>
+    <string name="listening_room_nothing_yet">Todavía no suena nada</string>
+    <string name="listening_room_preparing">Preparando para empezar juntos…</string>
+    <string name="listening_room_waiting_other">Esperando a que entre alguien…</string>
+    <string name="listening_room_synced_playing">Sonando juntos</string>
+    <string name="listening_room_synced_paused">En pausa</string>
+    <string name="listening_room_chat_private">el chat no se guarda</string>
+    <string name="listening_room_previous">Anterior</string>
+    <string name="listening_room_next">Siguiente</string>
+    <string name="listening_room_play">Reproducir</string>
+    <string name="listening_room_pause">Pausar</string>
+    <string name="listening_room_search">Buscar para la sala</string>
+    <string name="listening_room_search_hint">Buscar una canción</string>
+    <string name="listening_room_search_close">Cerrar el buscador</string>
+    <string name="listening_room_search_title">Suena en la sala</string>
+    <string name="listening_room_search_for_both">los dos la oyen</string>
+    <string name="listening_room_search_empty">Escribe el nombre de una canción y aparecerá aquí.</string>
+    <string name="listening_room_search_none">No encontré nada con ese nombre.</string>
+    <string name="listening_room_typing">%1$s está escribiendo</string>
+    <string name="listening_room_leave_title">¿Salir de la sala?</string>
+    <string name="listening_room_leave_text">Si sales de aquí sales de la sala: dejas de escuchar junto al otro y el buscador se cierra, porque solo funciona dentro. Lo que suene en la sala sigue para la otra persona.</string>
+    <string name="listening_room_leave_confirm">Salir de la sala</string>
+    <string name="listening_room_leave_stay">Quedarme</string>
+    <string name="listening_room_notice_joined">%1$s entró a la sala</string>
+    <string name="listening_room_notice_chat_title">%1$s · %2$s</string>
+
+    <!-- Discord: quitar la tarjeta al cerrar la app -->
+    <string name="clear_discord_rpc_on_exit">Quitar el Rich Presence al cerrar</string>
+    <string name="clear_discord_rpc_on_exit_desc">Borra la tarjeta de Discord al cerrar la app, para que nunca se quede mostrando una canción que ya no suena.</string>
 </resources>
