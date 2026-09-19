@@ -17,6 +17,8 @@ Protocolo (JSON, un mensaje por frame)
 --------------------------------------
 Cliente -> servidor:
   {"t":"hello","name":"Leo","install":"<uuid>"}    primer mensaje, obligatorio
+        (install es el UUID de la instalacion: si vuelve a entrar, reemplaza su
+         conexion anterior en vez de aparecer dos veces en la sala)
   {"t":"state","track":{...},"position_ms":42000,"playing":true,"action":"play"}
   {"t":"sync","position_ms":..,"playing":..}       latido para corregir deriva
   {"t":"prepare","seq":<ms>,"track":{..},"position_ms":0,"playing":true}
@@ -65,6 +67,9 @@ Vida de una sala
 ----------------
 - Se crea con un codigo de 6 caracteres (POST /v1/room) y dura 24 h como maximo.
 - Si uno se va, la sala sigue en pie para el otro.
+- Un mismo `install` (misma instalacion de la app) nunca ocupa dos veces: al
+  reconectar reemplaza su conexion anterior, asi que no aparecen "oyentes
+  fantasma" ni queda frenando el arranque de la musica.
 - Cuando se van todos queda un margen de reconexion (ROOM_EMPTY_GRACE_SECONDS)
   y despues se borra.
 - El estado vive en memoria del proceso; si Render reinicia el servicio, la sala
@@ -117,7 +122,11 @@ MEMBER_IDLE_SECONDS = int(os.environ.get("ROOM_MEMBER_IDLE_SECONDS", "75"))
 # Si alguien no avisa `ready` (app matada a media carga, red caida), el servidor
 # suelta el `go` igual: mas vale empezar con un poco de desfase que quedarse
 # mudos para siempre esperando a un fantasma.
-PREPARE_TIMEOUT_SECONDS = float(os.environ.get("ROOM_PREPARE_TIMEOUT_SECONDS", "10"))
+PREPARE_TIMEOUT_SECONDS = float(os.environ.get("ROOM_PREPARE_TIMEOUT_SECONDS", "8"))
+# Un miembro que lleva este tiempo sin dar señales de vida NO frena el arranque
+# de los demas. La app manda `ping` cada 20 s incluso mientras carga, asi que
+# quien calla mas de esto esta muerto y esperarlo solo alarga la pausa.
+MEMBER_STALE_BLOCK_SECONDS = int(os.environ.get("ROOM_MEMBER_STALE_BLOCK_SECONDS", "12"))
 MAX_MESSAGE_BYTES = 8192
 MAX_CHAT_CHARS = 400
 MAX_NAME_CHARS = 24
@@ -164,6 +173,20 @@ def _clean_name(name: Any) -> str:
     if not isinstance(name, str) or not name.strip():
         return "Alguien"
     return name.strip()[:MAX_NAME_CHARS]
+
+
+def _clean_install(value: Any) -> str:
+    """ID de instalacion (UUID aleatorio de la app).
+
+    No identifica a nadie: solo sirve para reconocer que una conexion nueva es
+    la MISMA instalacion que ya estaba en la sala. Con eso, cuando el socket se
+    cae y la app se reconecta, el miembro viejo se reemplaza en el acto en vez
+    de quedarse de fantasma en la lista del otro (el bug de "entran mas
+    oyentes": el mismo telefono aparecia dos veces).
+    """
+    if not isinstance(value, str):
+        return ""
+    return value.strip()[:64]
 
 
 def _clean_text(value: Any, limit: int) -> Optional[str]:
@@ -214,6 +237,9 @@ class Member:
     id: str
     name: str
     socket: WebSocket
+    # ID de la instalacion (no de la persona): permite reemplazar la conexion
+    # vieja cuando la misma app vuelve a entrar.
+    install: str = ""
     window_start: float = field(default_factory=time.monotonic)
     window_count: int = 0
     last_seen: float = field(default_factory=time.monotonic)
@@ -366,15 +392,48 @@ class RoomManager:
             self.rooms[room.code] = room
         return room
 
-    async def join(self, room: Room, socket: WebSocket, name: str, ip_hash: str) -> Member:
-        member = Member(id=uuid.uuid4().hex[:6], name=name, socket=socket)
+    def _release_ip(self, ip_hash: str) -> None:
+        """Devuelve el cupo de conexiones de esa red (nunca deja contadores sueltos)."""
+        if not ip_hash:
+            return
+        remaining = self.connections_by_ip.get(ip_hash, 1) - 1
+        if remaining > 0:
+            self.connections_by_ip[ip_hash] = remaining
+        else:
+            self.connections_by_ip.pop(ip_hash, None)
+
+    async def join(
+        self,
+        room: Room,
+        socket: WebSocket,
+        name: str,
+        ip_hash: str,
+        install: str = "",
+    ) -> Member:
+        member = Member(id=uuid.uuid4().hex[:6], name=name, socket=socket, install=install)
         member_ips[member.id] = ip_hash
+        replaced: list[Member] = []
         async with self.lock:
+            # La misma instalacion vuelve a entrar: la conexion vieja ya no sirve
+            # (quedo a medias tras un corte de red), asi que se reemplaza AQUI.
+            # Sin esto el mismo telefono aparecia dos veces y el fantasma frenaba
+            # el arranque de las canciones hasta que el barrido lo sacaba.
+            if install:
+                for other in list(room.members.values()):
+                    if other.install and other.install == install:
+                        room.members.pop(other.id, None)
+                        self._release_ip(member_ips.pop(other.id, ""))
+                        replaced.append(other)
             if len(room.members) >= MAX_MEMBERS:
                 raise HTTPException(status_code=409, detail="la sala esta llena")
             room.members[member.id] = member
             room.empty_since = None
             self.connections_by_ip[ip_hash] = self.connections_by_ip.get(ip_hash, 0) + 1
+        for other in replaced:
+            try:
+                await other.socket.close(code=4000, reason="reconectado")
+            except Exception:
+                pass
         return member
 
     async def leave(self, room: Room, member: Member, ip_hash: str = "") -> None:
@@ -383,11 +442,7 @@ class RoomManager:
             room.members.pop(member.id, None)
             if not room.members:
                 room.empty_since = time.monotonic()
-            remaining = self.connections_by_ip.get(ip_hash, 1) - 1
-            if remaining > 0:
-                self.connections_by_ip[ip_hash] = remaining
-            else:
-                self.connections_by_ip.pop(ip_hash, None)
+            self._release_ip(ip_hash)
         # Si el que se fue era el que faltaba por avisar, la sala ya puede
         # arrancar: nadie debe quedarse esperando a alguien que ya no esta.
         await self.maybe_go(room)
@@ -468,11 +523,23 @@ class RoomManager:
         await self.maybe_go(room)
 
     async def maybe_go(self, room: Room) -> None:
-        """Arranca si ya avisaron todos los que estaban cuando se pidio el cambio."""
+        """Arranca si ya avisaron todos los que estaban cuando se pidio el cambio.
+
+        Solo cuentan los que siguen DANDO SEÑALES DE VIDA: un miembro que lleva
+        callado mas de [MEMBER_STALE_BLOCK_SECONDS] no puede dejar a la sala en
+        pausa esperandolo (esa era la pausa larga que se sentia al cambiar de
+        cancion).
+        """
         prepare = room.prepare
         if prepare is None:
             return
-        pending = {member for member in prepare.waiting if member in room.members} - prepare.ready
+        now = time.monotonic()
+        pending = {
+            member
+            for member in prepare.waiting
+            if member in room.members
+            and (now - room.members[member].last_seen) <= MEMBER_STALE_BLOCK_SECONDS
+        } - prepare.ready
         if pending:
             return
         await self.fire_go(room, prepare.seq)
@@ -522,6 +589,27 @@ class RoomManager:
             at_ms=at_ms,
         )
 
+    async def _send(self, member: Member, message: dict[str, Any]) -> bool:
+        try:
+            await member.socket.send_json(message)
+            return True
+        except Exception:
+            return False
+
+    async def _drop_dead(self, room: Room, dead: list[Member]) -> None:
+        """Saca de la sala a los sockets que ya no responden y avisa a los demas."""
+        for member in dead:
+            if room.members.pop(member.id, None) is None:
+                continue
+            self._release_ip(member_ips.pop(member.id, ""))
+            try:
+                await member.socket.close(code=1001)
+            except Exception:
+                pass
+        if not room.members:
+            return
+        await self.maybe_go(room)
+
     async def broadcast(
         self,
         room: Room,
@@ -530,14 +618,22 @@ class RoomManager:
         at_ms: Optional[int] = None,
     ) -> None:
         message = {**payload, "server_ms": at_ms or _now_ms()}
+        dead: list[Member] = []
         for member in list(room.members.values()):
             if skip is not None and member.id == skip:
                 continue
-            try:
-                await member.socket.send_json(message)
-            except Exception:
-                # El socket ya no responde: su propio finally lo saca de la sala.
-                room.members.pop(member.id, None)
+            if not await self._send(member, message):
+                dead.append(member)
+        if not dead:
+            return
+        # Un socket muerto no puede quedarse en la lista de la sala: antes se
+        # borraba en silencio y el otro seguia viendo a alguien que ya no estaba
+        # (y su cupo de red se quedaba contado).
+        await self._drop_dead(room, dead)
+        # Se avisa de la lista nueva, salvo si el mensaje que la cambio ya era
+        # eso mismo: asi nunca se reenvia en ciclo.
+        if payload.get("t") not in ("presence", "left"):
+            await self.broadcast(room, {"t": "presence", "members": room.public_members()})
 
     async def set_state(self, room: Room, state: dict[str, Any]) -> None:
         await self.set_state_at(room, state, _now_ms())
@@ -803,7 +899,13 @@ async def room_socket(socket: WebSocket, code: str):
         return
 
     try:
-        member = await manager.join(room, socket, _clean_name(hello.get("name")), ip_hash)
+        member = await manager.join(
+            room,
+            socket,
+            _clean_name(hello.get("name")),
+            ip_hash,
+            _clean_install(hello.get("install")),
+        )
     except HTTPException as error:
         await refuse(str(error.detail), close_code=1008)
         return

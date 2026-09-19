@@ -180,8 +180,9 @@ class WebSocketClient:
 class SimClient:
     """Un cliente de la sala con el mismo reloj que usaria la app."""
 
-    def __init__(self, ws_url: str, name: str):
+    def __init__(self, ws_url: str, name: str, install: str = ""):
         self.name = name
+        self.install = install
         self.ws = WebSocketClient(ws_url)
         self.offset_ms = 0.0          # server_ms - local_ms (relojes distintos)
         self.rtt_ms = 0.0
@@ -196,7 +197,10 @@ class SimClient:
 
     def connect(self) -> dict:
         self.ws.connect()
-        self.ws.send_json({"t": "hello", "name": self.name})
+        hello = {"t": "hello", "name": self.name}
+        if self.install:
+            hello["install"] = self.install
+        self.ws.send_json(hello)
         joined = self.ws.recv_json()
         self._absorb(joined)
         self.calibrate()
@@ -491,7 +495,47 @@ def main() -> int:
         and any("elección" in (m.get("text") or "") for m in received),
     )
 
-    print("\n7) El invitado sale: la sala sigue viva")
+    print('\n6b) "Está escribiendo" y alguien que entra a mitad de canción')
+    host.ws.send_json({"t": "typing"})
+    typing = wait_for(guest, "typing", timeout=4)
+    failures += not check("al invitado le llega el aviso de escritura", bool(typing))
+
+    # Un tercero entra cuando la música ya va por la mitad: debe caer en el
+    # segundo en el que va la sala (el servidor proyecta la posición al entrar).
+    host.ws.send_json({"t": "state", "track": new_track, "position_ms": 60000, "playing": True, "action": "seek"})
+    guest.listen()
+    time.sleep(3.0)
+    latecomer = SimClient(url, "Tarde")
+    joined = latecomer.connect()
+    projected = float((joined.get("state") or {}).get("position_ms") or 0)
+    failures += not check(
+        f"el que entra tarde cae en el segundo {projected / 1000:.1f} (la sala va por 63)",
+        abs(projected - 63000) < 4000,
+    )
+    latecomer.ws.close()
+    # Se consume su aviso de salida aqui: si no, el de la seccion 7 leeria ESTE
+    # y pareceria que el invitado no se fue.
+    wait_for(host, "left", timeout=5)
+
+    print("\n7) La misma instalación no se duplica (el bug de \"más oyentes\")")
+    # La app manda el UUID de su instalación en el hello. Si el socket se cae y
+    # vuelve a entrar, el servidor debe REEMPLAZAR la conexión vieja: si no, el
+    # mismo teléfono aparece dos veces y el fantasma frena el arranque.
+    first = SimClient(url, "Oyente", install="instalacion-de-prueba")
+    first.connect()
+    reconnect = SimClient(url, "Oyente", install="instalacion-de-prueba")
+    reconnect.connect()
+    people = api(base, "GET", f"/v1/room/{code}")["personas"]
+    failures += not check(
+        "reconectar la misma instalación NO deja dos oyentes",
+        people == 2,
+        f"{people} conectados (antes serían 3)",
+    )
+    failures += not check("el servidor cierra la conexión vieja", first.ws.recv_json(timeout=5.0) is None)
+    reconnect.ws.close()
+    wait_for(host, "left", timeout=5)
+
+    print("\n8) El invitado sale: la sala sigue viva")
     guest.ws.close()
     # La salida debe verse al instante (gracias al "bye"): se le dan 6 s de
     # margen para no confundir un aviso lento con un aviso que no llega.
@@ -504,7 +548,7 @@ def main() -> int:
         time.sleep(0.5)
     failures += not check("la sala sigue existiendo", api(base, "GET", f"/v1/room/{code}")["personas"] == 1)
 
-    print("\n8) Control desde administración")
+    print("\n9) Control desde administración")
     token = load_token()
     if token:
         rooms = api(base, "GET", "/admin/rooms", token)
