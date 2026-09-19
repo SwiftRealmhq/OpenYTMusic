@@ -46,6 +46,7 @@ Uso:
     python3 oymctl.py ban 190.12.34.56 "abuso de busquedas"
     python3 oymctl.py unban <ip_hash>
     python3 oymctl.py export
+    python3 oymctl.py purge        # BORRA el historial (respaldo antes, por favor)
     python3 oymctl.py health
 """
 
@@ -519,6 +520,7 @@ def main() -> None:
             "ban",
             "unban",
             "export",
+            "purge",
             "health",
         ],
         help="sin esto abre el modo interactivo (o 'ui' para forzarlo)",
@@ -729,6 +731,22 @@ def main() -> None:
         print(f"guardado en {destination}")
         for key, value in counts.items():
             print(f"  {key}: {value}")
+        return
+
+    if command == "purge":
+        # Pide confirmacion a proposito: esto no tiene vuelta atras. Los baneos y
+        # las salas no se tocan; el resto del historial desaparece.
+        print("Esto BORRA todo el historial de uso (busquedas, reproducciones,")
+        print("instalaciones y contadores por red). Baneos y salas se conservan.")
+        answer = input("Escribe PURGAR para confirmar: ").strip().upper()
+        if answer != "PURGAR":
+            print("cancelado")
+            return
+        result = call(url, token, "DELETE", "/admin/purge")
+        print("historial borrado:")
+        for key, value in result.items():
+            if key != "purgado":
+                print(f"  {key}: {value} filas")
         return
 
 

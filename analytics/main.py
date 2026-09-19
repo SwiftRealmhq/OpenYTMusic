@@ -402,6 +402,27 @@ def export_all():
         }
 
 
+@app.delete("/admin/purge", dependencies=[Depends(require_admin)])
+def purge_all():
+    """
+    Borra TODO el historial de uso (instalaciones, busquedas, reproducciones,
+    contadores por red). Los baneos y las salas NO se tocan: los baneos son una
+    decision del administrador y las salas estan vivas.
+
+    Sirve para empezar limpio (p. ej. despues de las pruebas propias) o antes de
+    reciclar la base cuando el Postgres gratis cumple sus 30 dias.
+    """
+    with db().connection() as connection:
+        deleted = {
+            "searches": connection.execute("DELETE FROM searches").rowcount,
+            "plays": connection.execute("DELETE FROM plays").rowcount,
+            "installs": connection.execute("DELETE FROM installs").rowcount,
+            "ip_counters": connection.execute("DELETE FROM ip_counters").rowcount,
+        }
+        connection.commit()
+    return {"purgado": True, **deleted}
+
+
 @app.get("/admin/counts-by-day", dependencies=[Depends(require_admin)])
 def counts_by_day(days: int = 30):
     """Serie diaria para ver si el uso crece o cae."""
