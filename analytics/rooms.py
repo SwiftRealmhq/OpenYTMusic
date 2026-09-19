@@ -926,6 +926,11 @@ async def room_socket(socket: WebSocket, code: str):
     try:
         while True:
             raw = await socket.receive_text()
+            # Si ya no estoy en la sala es que una conexion mas nueva de mi misma
+            # instalacion me reemplazo: esta conexion vieja termina aqui y no
+            # puede volver a hablar (era lo que duplicaba las ordenes).
+            if member.id not in room.members:
+                return
             if len(raw) > MAX_MESSAGE_BYTES:
                 await refuse("mensaje demasiado largo")
                 return

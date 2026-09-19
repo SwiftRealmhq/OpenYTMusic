@@ -22,7 +22,9 @@ Verifica, en este orden:
   5. Chat en los dos sentidos.
   6. B se sale -> A ve la lista de miembros sin B (la sala sigue viva).
   7. ping/pong: mide el ida y vuelta (con eso el cliente corrige su reloj).
-  8. Control desde administracion.
+  8. Reconectar la MISMA instalacion (mismo `install`) no duplica oyentes y la
+     conexion reemplazada deja de poder hablar en la sala.
+  9. Control desde administracion.
 """
 
 import base64
@@ -521,17 +523,24 @@ def main() -> int:
     # La app manda el UUID de su instalación en el hello. Si el socket se cae y
     # vuelve a entrar, el servidor debe REEMPLAZAR la conexión vieja: si no, el
     # mismo teléfono aparece dos veces y el fantasma frena el arranque.
+    # Aqui ya estan el anfitrion y el invitado: la cuenta correcta es 3.
+    before = api(base, "GET", f"/v1/room/{code}")["personas"]
     first = SimClient(url, "Oyente", install="instalacion-de-prueba")
     first.connect()
+    joined_count = api(base, "GET", f"/v1/room/{code}")["personas"]
     reconnect = SimClient(url, "Oyente", install="instalacion-de-prueba")
     reconnect.connect()
     people = api(base, "GET", f"/v1/room/{code}")["personas"]
     failures += not check(
         "reconectar la misma instalación NO deja dos oyentes",
-        people == 2,
-        f"{people} conectados (antes serían 3)",
+        people == joined_count == before + 1,
+        f"{people} conectados (serían {before + 2} sin el arreglo)",
     )
-    failures += not check("el servidor cierra la conexión vieja", first.ws.recv_json(timeout=5.0) is None)
+    # La conexion vieja ya no esta en la sala: lo que mande no debe llegarle a nadie.
+    first.ws.send_json({"t": "chat", "text": "fantasma"})
+    ghost = [message for message in host.drain(2.0) if message.get("t") == "chat"]
+    failures += not check("la conexión reemplazada ya no puede hablar en la sala", not ghost)
+
     reconnect.ws.close()
     wait_for(host, "left", timeout=5)
 
