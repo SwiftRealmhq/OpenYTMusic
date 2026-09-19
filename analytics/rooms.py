@@ -610,6 +610,25 @@ class RoomManager:
             return
         await self.maybe_go(room)
 
+    async def _announce_presence(self, room: Room, depth: int = 0) -> None:
+        """Manda la lista de miembros actualizada a los que quedan.
+
+        Hace falta SIEMPRE que alguien sale por la puerta de atras (socket muerto):
+        el aviso que disparo la limpieza llevaba la lista vieja, asi que sin esto
+        el otro se quedaba viendo a alguien que ya no estaba hasta el siguiente
+        aviso. La profundidad corta cualquier reenvio en cadena.
+        """
+        if depth > 3 or not room.members:
+            return
+        message = {"t": "presence", "members": room.public_members(), "server_ms": _now_ms()}
+        again: list[Member] = []
+        for member in list(room.members.values()):
+            if not await self._send(member, message):
+                again.append(member)
+        if again:
+            await self._drop_dead(room, again)
+            await self._announce_presence(room, depth + 1)
+
     async def broadcast(
         self,
         room: Room,
@@ -630,10 +649,7 @@ class RoomManager:
         # borraba en silencio y el otro seguia viendo a alguien que ya no estaba
         # (y su cupo de red se quedaba contado).
         await self._drop_dead(room, dead)
-        # Se avisa de la lista nueva, salvo si el mensaje que la cambio ya era
-        # eso mismo: asi nunca se reenvia en ciclo.
-        if payload.get("t") not in ("presence", "left"):
-            await self.broadcast(room, {"t": "presence", "members": room.public_members()})
+        await self._announce_presence(room)
 
     async def set_state(self, room: Room, state: dict[str, Any]) -> None:
         await self.set_state_at(room, state, _now_ms())

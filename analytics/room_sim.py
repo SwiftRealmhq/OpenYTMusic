@@ -524,6 +524,11 @@ def main() -> int:
     # vuelve a entrar, el servidor debe REEMPLAZAR la conexión vieja: si no, el
     # mismo teléfono aparece dos veces y el fantasma frena el arranque.
     # Aqui ya estan el anfitrion y el invitado: la cuenta correcta es 3.
+    # Se les da un latido antes, como hace la app cada 5 s: si no, el barrido de
+    # inactivos podria sacarlos a mitad de la prueba (el simulador no tiene un
+    # hilo latiendo como el telefono).
+    host.ws.send_json({"t": "ping", "at": 0})
+    guest.ws.send_json({"t": "ping", "at": 0})
     before = api(base, "GET", f"/v1/room/{code}")["personas"]
     first = SimClient(url, "Oyente", install="instalacion-de-prueba")
     first.connect()
@@ -546,15 +551,34 @@ def main() -> int:
 
     print("\n8) El invitado sale: la sala sigue viva")
     guest.ws.close()
-    # La salida debe verse al instante (gracias al "bye"): se le dan 6 s de
-    # margen para no confundir un aviso lento con un aviso que no llega.
-    left = wait_for(host, "left", timeout=6)
-    failures += not check("el anfitrión ve que se fue", left is not None, (left or {}).get("name", ""))
-    failures += not check("queda 1 persona en la sala", len((left or {}).get("members", [])) == 1)
+    # La salida debe verse al instante (gracias al "bye"): se espera SU aviso en
+    # concreto, con 6 s de margen para no confundir un aviso lento con uno que no
+    # llega (y sin confundirlo con el de otra persona que se haya ido antes).
+    # Se espera SU salida: el aviso normal es un `left` con su nombre; si el
+    # servidor tuvo que limpiar su socket porque la conexion ya estaba muerta,
+    # llega como `presence` sin el. Las dos cosas significan lo mismo.
+    gone = False
+    deadline = time.monotonic() + 6
+    while time.monotonic() < deadline:
+        message = host.listen(timeout=1.0)
+        if not message:
+            continue
+        if message.get("t") == "left" and message.get("name") == "Invitado":
+            gone = True
+            break
+        if message.get("t") == "presence" and all(
+            member.get("name") != "Invitado" for member in message.get("members", [])
+        ):
+            gone = True
+            break
+    failures += not check("el anfitrión ve que se fue", gone)
+    one_left = False
     for _ in range(10):
         if api(base, "GET", f"/v1/room/{code}")["personas"] == 1:
+            one_left = True
             break
         time.sleep(0.5)
+    failures += not check("queda 1 persona en la sala", one_left)
     failures += not check("la sala sigue existiendo", api(base, "GET", f"/v1/room/{code}")["personas"] == 1)
 
     print("\n9) Control desde administración")
